@@ -7,10 +7,9 @@ import {
   PAYMENT_LABEL,
   type ApiDetail,
   fetchReservation,
-  formatDateTime,
-  formatWon,
   writeDecision,
 } from "@/lib/reservations";
+import { formatDateTime, formatWon } from "@/lib/utils/format";
 import DecisionPopup from "./_components/DecisionPopupClient";
 import InfoRow from "./_components/InfoRow";
 
