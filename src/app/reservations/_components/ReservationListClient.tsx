@@ -6,6 +6,10 @@ import { useInfiniteQuery } from "@tanstack/react-query";
 import { fetchReservations } from "@/lib/api/reservation";
 import type { Reservation, UiStatus } from "@/lib/models";
 import { readDecisions } from "@/lib/storage/decision";
+import {
+  readHideCanceled,
+  writeHideCanceled,
+} from "@/lib/storage/hideCanceled";
 import { addDays, formatDateHeader } from "@/lib/utils/format";
 import ReservationCard from "./ReservationCardClient";
 
@@ -16,25 +20,29 @@ function ReservationListClient() {
   const initialPage = Number(searchParams.get("page"));
   const perPage = Number(searchParams.get("per_page"));
 
+  const [scrollY, setScrollY] = useState(0);
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
+  // 로컬 스토리지에만 있는 값들. 렌더 중에 읽으면 서버/클라이언트 결과가 달라지므로
+  // 서버와 같은 기본값으로 시작한 뒤 마운트 후에 읽어서 덮어쓴다.
+  const [hideCanceled, setHideCanceled] = useState(true);
+  const [decisions, setDecisions] = useState<Record<string, UiStatus>>({});
+
+  useEffect(() => {
+    setHideCanceled(readHideCanceled());
+    setDecisions(readDecisions());
+  }, []);
+
+  function toggleHideCanceled() {
+    const next = !hideCanceled;
+    setHideCanceled(next);
+    writeHideCanceled(next);
+  }
+
   function moveDate(delta: number) {
     router.push(
       `/reservations?date=${addDays(selectedDate, delta)}&page=0&per_page=${perPage}`,
     );
   }
-
-  const [hideCanceled, setHideCanceled] = useState<boolean>(() => {
-    if (typeof window === "undefined") return true;
-    return window.localStorage.getItem("hideCanceled") !== "false";
-  });
-  const [scrollY, setScrollY] = useState(0);
-  const sentinelRef = useRef<HTMLDivElement | null>(null);
-
-  // 확정/불가 결정은 로컬 스토리지에만 있으므로 서버 응답에 클라이언트에서 덮어쓴다.
-  // (렌더 중에 읽으면 서버/클라이언트 결과가 달라지므로 effect 에서 읽는다.
-  const [decisions, setDecisions] = useState<Record<string, UiStatus>>({});
-  useEffect(() => {
-    setDecisions(readDecisions());
-  }, []);
 
   const {
     data,
@@ -69,10 +77,6 @@ function ReservationListClient() {
   useEffect(() => {
     setGroups(groupByTime(items));
   }, [items]);
-
-  useEffect(() => {
-    window.localStorage.setItem("hideCanceled", String(hideCanceled));
-  }, [hideCanceled]);
 
   useEffect(() => {
     function onScroll() {
@@ -160,7 +164,7 @@ function ReservationListClient() {
               role="switch"
               aria-checked={hideCanceled}
               aria-label="취소된 예약 안보기"
-              onClick={() => setHideCanceled((prev) => !prev)}
+              onClick={toggleHideCanceled}
               className={`flex h-7 w-12 shrink-0 items-center rounded-[14px] p-0.5 transition-colors ${
                 hideCanceled
                   ? "bg-primary justify-end"
