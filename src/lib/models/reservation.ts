@@ -18,6 +18,12 @@ export interface Reservation {
   status: UiStatus;
 }
 
+export interface ReservationsPage {
+  items: Reservation[];
+  hasNext: boolean;
+  totalPages: number;
+}
+
 export interface ReservationDetail {
   id: string;
   status: UiStatus;

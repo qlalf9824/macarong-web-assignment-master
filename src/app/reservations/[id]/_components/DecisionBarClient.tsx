@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { writeDecision } from "@/lib/reservations";
+import { writeDecision } from "@/lib/storage/decision";
 import DecisionPopup from "./DecisionPopupClient";
 
 function DecisionBarClient({ id }: { id: string }) {

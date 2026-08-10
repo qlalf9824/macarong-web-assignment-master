@@ -3,8 +3,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useInfiniteQuery } from "@tanstack/react-query";
-import type { Reservation } from "@/lib/models";
-import { fetchReservationsPage } from "@/lib/reservations";
+import { fetchReservations } from "@/lib/api/reservation";
+import type { Reservation, UiStatus } from "@/lib/models";
+import { readDecisions } from "@/lib/storage/decision";
 import { addDays, formatDateHeader } from "@/lib/utils/format";
 import ReservationCard from "./ReservationCardClient";
 
@@ -28,6 +29,13 @@ function ReservationListClient() {
   const [scrollY, setScrollY] = useState(0);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
 
+  // 확정/불가 결정은 로컬 스토리지에만 있으므로 서버 응답에 클라이언트에서 덮어쓴다.
+  // (렌더 중에 읽으면 서버/클라이언트 결과가 달라지므로 effect 에서 읽는다.
+  const [decisions, setDecisions] = useState<Record<string, UiStatus>>({});
+  useEffect(() => {
+    setDecisions(readDecisions());
+  }, []);
+
   const {
     data,
     isLoading,
@@ -39,17 +47,22 @@ function ReservationListClient() {
   } = useInfiniteQuery({
     queryKey: ["reservations", selectedDate],
     queryFn: ({ pageParam }) =>
-      fetchReservationsPage(selectedDate, pageParam, perPage),
+      fetchReservations(selectedDate, pageParam, perPage),
     initialPageParam: initialPage,
     getNextPageParam: () => undefined,
   });
 
   const items = useMemo(() => {
-    const all = data?.pages.flatMap((page) => page.items) ?? [];
+    const all = (data?.pages.flatMap((page) => page.items) ?? []).map(
+      (item) => {
+        const decided = decisions[item.id];
+        return decided ? { ...item, status: decided } : item;
+      },
+    );
     return hideCanceled
       ? all.filter((item) => item.status !== "canceled")
       : all;
-  }, [data, hideCanceled]);
+  }, [data, decisions, hideCanceled]);
 
   // 시간대별 그룹은 상태로 들고 effect 로 동기화한다.
   const [groups, setGroups] = useState(() => groupByTime(items));

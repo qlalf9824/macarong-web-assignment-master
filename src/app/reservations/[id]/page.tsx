@@ -1,5 +1,4 @@
 import { notFound } from "next/navigation";
-import { toReservationDetail } from "@/lib/models";
 import { getReservationDetail } from "@/lib/service/reservation";
 import { formatWon } from "@/lib/utils/format";
 import BackButton from "./_components/BackButtonClient";
@@ -10,10 +9,9 @@ function ReservationDetailPage({ params }: { params: { id: string } }) {
   const serverId = Number(params.id);
   if (!Number.isInteger(serverId)) notFound();
 
-  const detail = getReservationDetail(serverId);
-  if (!detail) notFound();
+  const data = getReservationDetail(serverId);
+  if (!data) notFound();
 
-  const data = toReservationDetail(detail);
   const { productTitle, productName, additionalItems } = data;
   const carParts = [data.car.brand, data.car.model, data.car.fuelLabel].filter(
     Boolean,
