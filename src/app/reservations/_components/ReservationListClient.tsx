@@ -53,7 +53,7 @@ function ReservationListClient() {
     hasNextPage,
     isFetchingNextPage,
   } = useInfiniteQuery({
-    queryKey: ["reservations", selectedDate],
+    queryKey: ["reservations", selectedDate, perPage],
     queryFn: ({ pageParam }) =>
       fetchReservations(selectedDate, pageParam, perPage),
     initialPageParam: initialPage,
