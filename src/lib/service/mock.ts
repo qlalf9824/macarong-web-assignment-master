@@ -12,6 +12,8 @@
  *    (id = 날짜번호 * ID_BASE + 그날의 순번)
  *    그래서 목록을 거치지 않고 상세 URL로 바로 들어와도, id만 보고 그 예약을 다시 만들어 낼 수 있습니다.
  */
+import "server-only";
+
 import type {
   ApiCustomer,
   ApiProduct,
@@ -105,30 +107,84 @@ function fromDayNumber(dayNum: number): string {
 const SERVICE_POOL: { group: string; names: string[] }[] = [
   {
     group: "엔진오일 교체",
-    names: ["쉘 힐릭스 울트라 5W-40", "모빌1 5W-30", "킥스 PAO 5W-30", "지크 X7 5W-30", "캐스트롤 엣지 5W-30"],
+    names: [
+      "쉘 힐릭스 울트라 5W-40",
+      "모빌1 5W-30",
+      "킥스 PAO 5W-30",
+      "지크 X7 5W-30",
+      "캐스트롤 엣지 5W-30",
+    ],
   },
   {
     group: "브레이크오일 교체",
-    names: ["액트루브 SUPER DOT4", "보쉬 DOT4", "수노코 브레이크 플루이드", "ATE TYP200"],
+    names: [
+      "액트루브 SUPER DOT4",
+      "보쉬 DOT4",
+      "수노코 브레이크 플루이드",
+      "ATE TYP200",
+    ],
   },
   {
     group: "타이어 교체",
-    names: ["한국타이어 키너지 GT", "금호 마제스티9", "미쉐린 프라이머시4", "콘티넨탈 UC6", "넥센 엔페라"],
+    names: [
+      "한국타이어 키너지 GT",
+      "금호 마제스티9",
+      "미쉐린 프라이머시4",
+      "콘티넨탈 UC6",
+      "넥센 엔페라",
+    ],
   },
-  { group: "에어컨 점검", names: ["에어컨 가스 충전 R134a", "에어컨 시스템 진단", "에어컨 컴프레서 점검"] },
-  { group: "배터리 교체", names: ["로케트 AGM 80", "델코 DF60L", "아트라스 BX 90", "보쉬 AGM 70"] },
-  { group: "미션오일 교체", names: ["ZF 라이프가드8", "현대 ATF SP-4", "기아 CVT 오일"] },
-  { group: "휠 얼라인먼트", names: ["전륜 휠 얼라인먼트", "4륜 휠 얼라인먼트"] },
-  { group: "엔진 점검", names: ["엔진 진단 및 점검", "점화플러그 교체", "타이밍벨트 점검"] },
-  { group: "냉각수 교체", names: ["부동액 교체 (사계절용)", "냉각수 라인 클리닝"] },
+  {
+    group: "에어컨 점검",
+    names: [
+      "에어컨 가스 충전 R134a",
+      "에어컨 시스템 진단",
+      "에어컨 컴프레서 점검",
+    ],
+  },
+  {
+    group: "배터리 교체",
+    names: ["로케트 AGM 80", "델코 DF60L", "아트라스 BX 90", "보쉬 AGM 70"],
+  },
+  {
+    group: "미션오일 교체",
+    names: ["ZF 라이프가드8", "현대 ATF SP-4", "기아 CVT 오일"],
+  },
+  {
+    group: "휠 얼라인먼트",
+    names: ["전륜 휠 얼라인먼트", "4륜 휠 얼라인먼트"],
+  },
+  {
+    group: "엔진 점검",
+    names: ["엔진 진단 및 점검", "점화플러그 교체", "타이밍벨트 점검"],
+  },
+  {
+    group: "냉각수 교체",
+    names: ["부동액 교체 (사계절용)", "냉각수 라인 클리닝"],
+  },
 ];
 
 const ADDON_POOL: ApiProduct[] = [
   { group: "엔진오일 필터", name: "순정 오일필터", price: 18000, quantity: 1 },
   { group: "에어컨 필터", name: "보쉬 에어컨필터", price: 22000, quantity: 1 },
-  { group: "와이퍼 교체", name: "보쉬 에어로트윈 와이퍼", price: 28000, quantity: 1 },
-  { group: "워셔액 보충", name: "불스원 사계절 워셔액", price: 9000, quantity: 2 },
-  { group: "타이어 위치교환", name: "타이어 로테이션", price: 20000, quantity: 1 },
+  {
+    group: "와이퍼 교체",
+    name: "보쉬 에어로트윈 와이퍼",
+    price: 28000,
+    quantity: 1,
+  },
+  {
+    group: "워셔액 보충",
+    name: "불스원 사계절 워셔액",
+    price: 9000,
+    quantity: 2,
+  },
+  {
+    group: "타이어 위치교환",
+    name: "타이어 로테이션",
+    price: 20000,
+    quantity: 1,
+  },
   { group: "하부 점검", name: "하체 육안 점검", price: 15000, quantity: 1 },
   { group: "실내 살균", name: "에어컨 살균 코팅", price: 35000, quantity: 1 },
 ];
@@ -146,8 +202,45 @@ const REQUIREMENTS_POOL = [
   "차에서 진동이 느껴져요. 점검 부탁드려요.",
 ];
 
-const FAMILY_NAMES = ["김", "이", "박", "최", "정", "강", "조", "윤", "장", "임", "한", "오", "서", "신", "권"];
-const GIVEN_NAMES = ["민준", "서연", "도윤", "지우", "하준", "지호", "예준", "수아", "지훈", "유진", "현우", "서윤", "준서", "지민", "은지", "태현", "다은", "성민", "하늘", "지아"];
+const FAMILY_NAMES = [
+  "김",
+  "이",
+  "박",
+  "최",
+  "정",
+  "강",
+  "조",
+  "윤",
+  "장",
+  "임",
+  "한",
+  "오",
+  "서",
+  "신",
+  "권",
+];
+const GIVEN_NAMES = [
+  "민준",
+  "서연",
+  "도윤",
+  "지우",
+  "하준",
+  "지호",
+  "예준",
+  "수아",
+  "지훈",
+  "유진",
+  "현우",
+  "서윤",
+  "준서",
+  "지민",
+  "은지",
+  "태현",
+  "다은",
+  "성민",
+  "하늘",
+  "지아",
+];
 
 const VEHICLE_POOL: { brand: string; model: string; fuelType: string }[] = [
   { brand: "현대", model: "그랜저 IG", fuelType: "GASOLINE" },
@@ -168,7 +261,18 @@ const VEHICLE_POOL: { brand: string; model: string; fuelType: string }[] = [
 ];
 
 const PAYMENT_METHODS = ["CARD", "BANK", "VBANK", "ONSITE"];
-const PLATE_HANGUL = ["가", "나", "다", "라", "어", "거", "허", "호", "바", "사"];
+const PLATE_HANGUL = [
+  "가",
+  "나",
+  "다",
+  "라",
+  "어",
+  "거",
+  "허",
+  "호",
+  "바",
+  "사",
+];
 
 /**
  * 예약 상태를 정한다. 대부분은 예약 요청(CREATED)이고, 취소·연기·확정·완료가 섞이도록
@@ -259,7 +363,10 @@ function generateDay(date: string): MockReservation[] {
   for (let s = 0; s < TIME_SLOTS.length; s += 1) {
     const slotsLeft = TIME_SLOTS.length - s;
     const avg = remaining / slotsLeft; // 남은 시간대당 평균 배치 수
-    let n = s === TIME_SLOTS.length - 1 ? remaining : Math.round(avg * (0.4 + rng() * 1.2));
+    let n =
+      s === TIME_SLOTS.length - 1
+        ? remaining
+        : Math.round(avg * (0.4 + rng() * 1.2));
     n = Math.max(0, Math.min(n, remaining));
 
     for (let j = 0; j < n; j += 1) {
@@ -336,7 +443,11 @@ export function getReservationDetail(
     status: reservation.status,
     reservedAt: reservation.reservedAt,
     requirements: reservation.requirements,
-    customer: { serverId: customer.serverId, name: customer.name, phone: customer.phone },
+    customer: {
+      serverId: customer.serverId,
+      name: customer.name,
+      phone: customer.phone,
+    },
     vehicle: customer.vehicle,
     products: reservation.products,
     paymentMethod: reservation.paymentMethod,

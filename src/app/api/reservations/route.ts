@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { getReservationsPage } from "@/app/api/_lib/mock";
+import { getReservationsPage } from "@/lib/service/reservation";
 
 /** GET /api/reservations?date={YYYY-MM-DD}&page={1}&per_page={20} */
 export function GET(request: NextRequest) {
