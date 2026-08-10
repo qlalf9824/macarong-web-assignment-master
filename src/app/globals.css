@@ -1,0 +1,24 @@
+@import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: "Pretendard", system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  background-color: #e5e7eb;
+}
+
+.device-frame {
+  width: 360px;
+  margin: 0 auto;
+  min-height: 100dvh;
+  position: relative;
+}

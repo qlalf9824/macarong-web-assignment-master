@@ -1,0 +1,291 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import {
+  FUEL_LABEL,
+  PAYMENT_LABEL,
+  type ApiDetail,
+  fetchReservation,
+  formatDateTime,
+  formatWon,
+  writeDecision,
+} from "@/lib/reservations";
+
+function InfoRow({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex items-center justify-between">
+      <span className="text-t1 font-medium text-gray500">{label}</span>
+      {children}
+    </div>
+  );
+}
+
+function DecisionPopup({
+  title,
+  description,
+  confirmLabel,
+  onCancel,
+  onConfirm,
+}: {
+  title: string;
+  description: string;
+  confirmLabel: string;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") onCancel();
+    }
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [onCancel]);
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-dim px-10"
+      onClick={onCancel}
+    >
+      <div
+        className="w-[280px] overflow-hidden rounded-2xl bg-white"
+        onClick={(event) => event.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+      >
+        <div className="flex flex-col gap-2.5 px-5 pb-2 pt-6">
+          <p className="text-h3 font-bold text-gray900">{title}</p>
+          <p className="text-t2 font-medium text-gray600">{description}</p>
+        </div>
+        <div className="flex gap-2 px-4 py-3">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="flex h-11 flex-1 items-center justify-center rounded-[10px] bg-gray100 text-t2 font-medium text-gray700"
+          >
+            취소
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            className="flex h-11 flex-1 items-center justify-center rounded-[10px] bg-primary text-t2 font-medium text-white"
+          >
+            {confirmLabel}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function ReservationDetailPage({ params }: { params: { id: string } }) {
+  const router = useRouter();
+  const { id } = params;
+  const [popup, setPopup] = useState<"confirm" | "reject" | null>(null);
+
+  const [data, setData] = useState<ApiDetail | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isError, setIsError] = useState(false);
+
+  useEffect(() => {
+    setIsLoading(true);
+    setIsError(false);
+    fetchReservation(id)
+      .then(setData)
+      .catch(() => setIsError(true))
+      .finally(() => setIsLoading(false));
+  }, [id]);
+
+  function submitDecision() {
+    if (!popup) return;
+    writeDecision(id, popup === "confirm" ? "confirmed" : "rejected");
+    setPopup(null);
+    router.back();
+  }
+
+  if (isLoading) {
+    return (
+      <main className="device-frame flex items-center justify-center bg-white">
+        <p className="text-t2 font-medium text-gray500">불러오는 중…</p>
+      </main>
+    );
+  }
+
+  if (isError || !data) {
+    return (
+      <main className="device-frame flex flex-col items-center justify-center gap-3 bg-white">
+        <p className="text-t2 font-medium text-gray600">예약 정보를 찾을 수 없어요.</p>
+        <button
+          type="button"
+          onClick={() => router.back()}
+          className="rounded-[10px] bg-gray100 px-4 py-2 text-t2 font-medium text-gray700"
+        >
+          돌아가기
+        </button>
+      </main>
+    );
+  }
+
+  const productTitle = data.products[0]?.group ?? "";
+  const productName = data.products[0]?.name ?? "";
+  const additionalItems = data.products.slice(1).map((product) => product.name);
+  const amount = data.products.reduce((sum, product) => sum + product.price, 0);
+  const carParts = [data.vehicle.brand, data.vehicle.model, FUEL_LABEL[data.vehicle.fuelType]].filter(
+    Boolean,
+  ) as string[];
+
+  return (
+    <main className="device-frame flex min-h-[100dvh] flex-col bg-white">
+      <img
+        src="/icons/status_bar.svg"
+        alt=""
+        width={360}
+        height={24}
+        className="block w-full select-none"
+        aria-hidden
+      />
+      <div className="flex h-14 items-center px-1">
+        <button
+          type="button"
+          aria-label="뒤로가기"
+          onClick={() => router.back()}
+          className="flex h-12 w-12 items-center justify-center"
+        >
+          <img src="/icons/ic_nav_back.svg" alt="" width={48} height={48} aria-hidden />
+        </button>
+        <span className="text-t1 font-medium text-gray900">예약 요청 확인</span>
+      </div>
+
+      <div className="flex items-center gap-1 bg-primary-bg px-5 py-2.5">
+        <img src="/icons/ic_clock_fill.svg" alt="" width={20} height={20} aria-hidden />
+        <span className="text-t1 font-semibold text-primary">
+          {formatDateTime(data.reservedAt)}
+        </span>
+      </div>
+
+      <div className="flex flex-1 flex-col pb-20">
+        <div className="flex flex-col gap-4 px-5 py-8">
+          <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-1">
+              <h1 className="text-h3 font-bold text-gray900">{productTitle}</h1>
+              <p className="text-t1 font-medium text-gray600">{productName}</p>
+            </div>
+            {additionalItems.length > 0 && (
+              <ul className="flex flex-col gap-1">
+                {additionalItems.map((item) => (
+                  <li key={item} className="flex items-center gap-1.5">
+                    <img src="/icons/ic_plus_circle.svg" alt="" width={16} height={16} aria-hidden />
+                    <span className="text-t1 font-medium text-gray600">{item}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          {data.requirements && (
+            <div className="flex flex-col gap-1 rounded-[10px] border border-gray100 p-3">
+              <p className="text-t2 font-medium text-gray500">요청사항</p>
+              <p className="text-t2 font-medium text-gray600">{data.requirements}</p>
+            </div>
+          )}
+        </div>
+
+        <div className="flex flex-col items-center gap-5">
+          <div className="h-2 w-full bg-gray100" />
+
+          <div className="flex w-[320px] flex-col gap-3">
+            <section className="flex flex-col gap-3">
+              <h2 className="text-h4 font-semibold text-gray900">고객 정보</h2>
+              <div className="flex flex-col gap-1.5">
+                <InfoRow label="고객 이름">
+                  <span className="text-t1 font-semibold text-gray600">{data.customer.name}</span>
+                </InfoRow>
+                <InfoRow label="전화번호">
+                  <span className="text-t1 font-medium text-gray600">{data.customer.phone}</span>
+                </InfoRow>
+              </div>
+            </section>
+
+            <div className="h-px w-full bg-gray100" />
+
+            <section className="flex flex-col gap-3">
+              <h2 className="text-h4 font-semibold text-gray900">차량 정보</h2>
+              <div className="flex flex-col gap-1.5">
+                <InfoRow label="차량 정보">
+                  <span className="flex items-center gap-1.5">
+                    {carParts.map((part, index) => (
+                      <span key={part} className="flex items-center gap-1.5">
+                        <span className="text-t1 font-medium text-gray600">{part}</span>
+                        {index < carParts.length - 1 && (
+                          <span className="h-[3px] w-[3px] rounded-full bg-gray300" />
+                        )}
+                      </span>
+                    ))}
+                  </span>
+                </InfoRow>
+                <InfoRow label="차량 번호">
+                  <span className="text-t1 font-medium text-gray600">{data.vehicle.number}</span>
+                </InfoRow>
+              </div>
+            </section>
+          </div>
+
+          <div className="h-2 w-full bg-gray100" />
+
+          <div className="w-[320px]">
+            <section className="flex flex-col gap-3">
+              <h2 className="text-h4 font-semibold text-gray900">결제 상세</h2>
+              <div className="flex flex-col gap-1.5">
+                <InfoRow label="결제방법">
+                  <span className="text-t1 font-medium text-gray600">
+                    {PAYMENT_LABEL[data.paymentMethod] ?? data.paymentMethod}
+                  </span>
+                </InfoRow>
+                <div className="flex items-center justify-between">
+                  <span className="text-t1 font-medium text-primary">총 결제금액</span>
+                  <span className="text-h4 font-bold text-primary">{formatWon(amount)}</span>
+                </div>
+              </div>
+            </section>
+          </div>
+        </div>
+      </div>
+
+      <div className="sticky bottom-0 flex gap-2 border-t border-line-subtle bg-white px-4 py-3">
+        <button
+          type="button"
+          onClick={() => setPopup("reject")}
+          className="flex h-12 flex-1 items-center justify-center rounded-[10px] bg-gray100 text-t1 font-medium text-gray700"
+        >
+          예약 불가
+        </button>
+        <button
+          type="button"
+          onClick={() => setPopup("confirm")}
+          className="flex h-12 flex-1 items-center justify-center rounded-[10px] bg-primary text-t1 font-medium text-white"
+        >
+          예약 확정
+        </button>
+      </div>
+
+      {popup === "reject" && (
+        <DecisionPopup
+          title="작업이 어려우신가요?"
+          description="고객의 신뢰 유지를 위해 예약이 불가능한 시간은 미리 표시해주세요."
+          confirmLabel="예약 불가능"
+          onCancel={() => setPopup(null)}
+          onConfirm={submitDecision}
+        />
+      )}
+      {popup === "confirm" && (
+        <DecisionPopup
+          title="예약을 확정할까요?"
+          description="확정 후에는 고객에게 예약 완료 안내가 전송됩니다."
+          confirmLabel="확정하기"
+          onCancel={() => setPopup(null)}
+          onConfirm={submitDecision}
+        />
+      )}
+    </main>
+  );
+}
