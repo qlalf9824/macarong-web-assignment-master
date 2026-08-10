@@ -1,7 +1,4 @@
-import moment from "moment";
-import "moment/min/locales";
-
-moment.locale("ko");
+import { toTime } from "@/lib/utils/format";
 
 // BFF(Next.js Route Handler) 경유. 실제 데이터는 src/app/api/* 에서 목으로 제공한다.
 export const API_BASE = "/api";
@@ -82,26 +79,6 @@ export interface Reservation {
   customer: { name: string; phone: string; visitLabel: string };
   requestMessage?: string;
   status: UiStatus;
-}
-
-export function toTime(reservedAt: string): string {
-  return moment(reservedAt).format("A h:mm");
-}
-
-export function formatDateHeader(date: string): string {
-  return moment(date).format("M월 D일 ddd");
-}
-
-export function formatDateTime(reservedAt: string): string {
-  return moment(reservedAt).format("YYYY년 M월 D일 (ddd) A h:mm");
-}
-
-export function addDays(date: string, days: number): string {
-  return moment(date).add(days, "day").format("YYYY-MM-DD");
-}
-
-export function formatWon(amount: number): string {
-  return `${amount.toLocaleString("ko-KR")}원`;
 }
 
 export function visitLabel(visitCount: number): string {
