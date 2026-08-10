@@ -26,7 +26,7 @@ async function ReservationPage({
 
   const queryClient = new QueryClient();
   await queryClient.prefetchInfiniteQuery({
-    queryKey: ["reservations", date],
+    queryKey: ["reservations", date, Number(per_page)],
     queryFn: ({ pageParam }) =>
       getReservations(date, pageParam as number, Number(per_page)),
     initialPageParam: Number(page),
