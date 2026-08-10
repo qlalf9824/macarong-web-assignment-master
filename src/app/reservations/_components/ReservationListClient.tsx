@@ -57,7 +57,8 @@ function ReservationListClient() {
     queryFn: ({ pageParam }) =>
       fetchReservations(selectedDate, pageParam, perPage),
     initialPageParam: initialPage,
-    getNextPageParam: () => undefined,
+    getNextPageParam: (lastPage, pages) =>
+      lastPage.hasNext ? initialPage + pages.length : undefined,
   });
 
   const items = useMemo(() => {
