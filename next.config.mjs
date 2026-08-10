@@ -8,6 +8,9 @@ const nextConfig = {
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },
+  async redirects() {
+    return [{ source: "/", destination: "/reservations", permanent: false }];
+  },
 };
 
 export default nextConfig;
