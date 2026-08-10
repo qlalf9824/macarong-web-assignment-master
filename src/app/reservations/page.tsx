@@ -1,4 +1,8 @@
-import { dehydrate, HydrationBoundary, QueryClient } from "@tanstack/react-query";
+import {
+  dehydrate,
+  HydrationBoundary,
+  QueryClient,
+} from "@tanstack/react-query";
 import { redirect } from "next/navigation";
 import moment from "moment";
 import { PER_PAGE, fetchReservationsPage } from "@/lib/reservations";
@@ -6,7 +10,7 @@ import ReservationList from "./_components/ReservationListClient";
 
 export const dynamic = "force-dynamic";
 
-export default async function Page({
+async function ReservationPage({
   searchParams,
 }: {
   searchParams: { date?: string; page?: string; per_page?: string };
@@ -34,3 +38,5 @@ export default async function Page({
     </HydrationBoundary>
   );
 }
+
+export default ReservationPage;
