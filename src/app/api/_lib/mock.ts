@@ -12,7 +12,13 @@
  *    (id = 날짜번호 * ID_BASE + 그날의 순번)
  *    그래서 목록을 거치지 않고 상세 URL로 바로 들어와도, id만 보고 그 예약을 다시 만들어 낼 수 있습니다.
  */
-import type { ApiCustomer, ApiDetail, ApiListItem, ApiProduct } from "@/lib/reservations";
+import type {
+  ApiCustomer,
+  ApiProduct,
+  ApiReservationDetail,
+  ApiReservationListItem,
+  ApiReservationListPage,
+} from "@/lib/models";
 
 const CUSTOMER_COUNT = 120;
 /** 예약 id 인코딩에 쓰는 자릿수 기준. "하루 예약은 10만 건을 넘지 않는다"는 전제로 잡았다. */
@@ -231,7 +237,7 @@ function getCustomers(): Map<number, ApiCustomer> {
 }
 
 // ── 예약 데이터 ──────────────────────────────────────────────
-type MockReservation = ApiListItem;
+type MockReservation = ApiReservationListItem;
 
 // 한 번 만든 날짜의 예약 목록은 캐시해 둔다. (같은 날짜를 또 요청하면 재사용)
 const dayCache = new Map<string, MockReservation[]>();
@@ -295,19 +301,13 @@ function findReservation(serverId: number): MockReservation | null {
 }
 
 // ── Route Handler 에서 호출하는 조회 함수들 ──────────────────
-export interface ReservationsPageResponse {
-  data: ApiListItem[];
-  totalPages: number;
-  hasPrevious: boolean;
-  hasNext: boolean;
-}
 
 /** 예약 목록 (날짜 + 페이지). page 는 0부터 시작하며, per_page 개수만큼 잘라서 내려준다. */
 export function getReservationsPage(
   date: string | null,
   page: number,
   perPage: number,
-): ReservationsPageResponse {
+): ApiReservationListPage {
   const all = isValidDate(date) ? generateDay(date) : [];
   const totalPages = perPage > 0 ? Math.ceil(all.length / perPage) : 0;
   const start = page * perPage;
@@ -322,7 +322,9 @@ export function getReservationsPage(
 }
 
 /** 예약 상세 (목록 항목 + 고객 정보를 합쳐 상세 응답 형태로 만든다.) */
-export function getReservationDetail(serverId: number): ApiDetail | null {
+export function getReservationDetail(
+  serverId: number,
+): ApiReservationDetail | null {
   const reservation = findReservation(serverId);
   if (!reservation) return null;
 

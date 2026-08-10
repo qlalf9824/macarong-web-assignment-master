@@ -2,14 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import {
-  FUEL_LABEL,
-  PAYMENT_LABEL,
-  type ApiDetail,
-  fetchReservation,
-  writeDecision,
-} from "@/lib/reservations";
-import { formatDateTime, formatWon } from "@/lib/utils/format";
+import { type ReservationDetail, toReservationDetail } from "@/lib/models";
+import { fetchReservation, writeDecision } from "@/lib/reservations";
+import { formatWon } from "@/lib/utils/format";
 import DecisionPopup from "./_components/DecisionPopupClient";
 import InfoRow from "./_components/InfoRow";
 
@@ -18,7 +13,7 @@ function ReservationDetailPage({ params }: { params: { id: string } }) {
   const { id } = params;
   const [popup, setPopup] = useState<"confirm" | "reject" | null>(null);
 
-  const [data, setData] = useState<ApiDetail | null>(null);
+  const [data, setData] = useState<ReservationDetail | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isError, setIsError] = useState(false);
 
@@ -26,7 +21,7 @@ function ReservationDetailPage({ params }: { params: { id: string } }) {
     setIsLoading(true);
     setIsError(false);
     fetchReservation(id)
-      .then(setData)
+      .then((detail) => setData(toReservationDetail(detail)))
       .catch(() => setIsError(true))
       .finally(() => setIsLoading(false));
   }, [id]);
@@ -63,15 +58,10 @@ function ReservationDetailPage({ params }: { params: { id: string } }) {
     );
   }
 
-  const productTitle = data.products[0]?.group ?? "";
-  const productName = data.products[0]?.name ?? "";
-  const additionalItems = data.products.slice(1).map((product) => product.name);
-  const amount = data.products.reduce((sum, product) => sum + product.price, 0);
-  const carParts = [
-    data.vehicle.brand,
-    data.vehicle.model,
-    FUEL_LABEL[data.vehicle.fuelType],
-  ].filter(Boolean) as string[];
+  const { productTitle, productName, additionalItems } = data;
+  const carParts = [data.car.brand, data.car.model, data.car.fuelLabel].filter(
+    Boolean,
+  );
 
   return (
     <main className="device-frame flex min-h-[100dvh] flex-col bg-white">
@@ -110,7 +100,7 @@ function ReservationDetailPage({ params }: { params: { id: string } }) {
           aria-hidden
         />
         <span className="text-t1 font-semibold text-primary">
-          {formatDateTime(data.reservedAt)}
+          {data.reservedAtLabel}
         </span>
       </div>
 
@@ -141,11 +131,11 @@ function ReservationDetailPage({ params }: { params: { id: string } }) {
             )}
           </div>
 
-          {data.requirements && (
+          {data.requestMessage && (
             <div className="flex flex-col gap-1 rounded-[10px] border border-gray100 p-3">
               <p className="text-t2 font-medium text-gray500">요청사항</p>
               <p className="text-t2 font-medium text-gray600">
-                {data.requirements}
+                {data.requestMessage}
               </p>
             </div>
           )}
@@ -192,7 +182,7 @@ function ReservationDetailPage({ params }: { params: { id: string } }) {
                 </InfoRow>
                 <InfoRow label="차량 번호">
                   <span className="text-t1 font-medium text-gray600">
-                    {data.vehicle.number}
+                    {data.car.number}
                   </span>
                 </InfoRow>
               </div>
@@ -207,7 +197,7 @@ function ReservationDetailPage({ params }: { params: { id: string } }) {
               <div className="flex flex-col gap-1.5">
                 <InfoRow label="결제방법">
                   <span className="text-t1 font-medium text-gray600">
-                    {PAYMENT_LABEL[data.paymentMethod] ?? data.paymentMethod}
+                    {data.payment.methodLabel}
                   </span>
                 </InfoRow>
                 <div className="flex items-center justify-between">
@@ -215,7 +205,7 @@ function ReservationDetailPage({ params }: { params: { id: string } }) {
                     총 결제금액
                   </span>
                   <span className="text-h4 font-bold text-primary">
-                    {formatWon(amount)}
+                    {formatWon(data.payment.totalAmount)}
                   </span>
                 </div>
               </div>
