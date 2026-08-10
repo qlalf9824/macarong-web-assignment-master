@@ -11,74 +11,10 @@ import {
   formatWon,
   writeDecision,
 } from "@/lib/reservations";
+import DecisionPopup from "./_components/DecisionPopupClient";
+import InfoRow from "./_components/InfoRow";
 
-function InfoRow({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="flex items-center justify-between">
-      <span className="text-t1 font-medium text-gray500">{label}</span>
-      {children}
-    </div>
-  );
-}
-
-function DecisionPopup({
-  title,
-  description,
-  confirmLabel,
-  onCancel,
-  onConfirm,
-}: {
-  title: string;
-  description: string;
-  confirmLabel: string;
-  onCancel: () => void;
-  onConfirm: () => void;
-}) {
-  useEffect(() => {
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") onCancel();
-    }
-    document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [onCancel]);
-
-  return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-dim px-10"
-      onClick={onCancel}
-    >
-      <div
-        className="w-[280px] overflow-hidden rounded-2xl bg-white"
-        onClick={(event) => event.stopPropagation()}
-        role="dialog"
-        aria-modal="true"
-      >
-        <div className="flex flex-col gap-2.5 px-5 pb-2 pt-6">
-          <p className="text-h3 font-bold text-gray900">{title}</p>
-          <p className="text-t2 font-medium text-gray600">{description}</p>
-        </div>
-        <div className="flex gap-2 px-4 py-3">
-          <button
-            type="button"
-            onClick={onCancel}
-            className="flex h-11 flex-1 items-center justify-center rounded-[10px] bg-gray100 text-t2 font-medium text-gray700"
-          >
-            취소
-          </button>
-          <button
-            type="button"
-            onClick={onConfirm}
-            className="flex h-11 flex-1 items-center justify-center rounded-[10px] bg-primary text-t2 font-medium text-white"
-          >
-            {confirmLabel}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-export default function ReservationDetailPage({ params }: { params: { id: string } }) {
+function ReservationDetailPage({ params }: { params: { id: string } }) {
   const router = useRouter();
   const { id } = params;
   const [popup, setPopup] = useState<"confirm" | "reject" | null>(null);
@@ -114,7 +50,9 @@ export default function ReservationDetailPage({ params }: { params: { id: string
   if (isError || !data) {
     return (
       <main className="device-frame flex flex-col items-center justify-center gap-3 bg-white">
-        <p className="text-t2 font-medium text-gray600">예약 정보를 찾을 수 없어요.</p>
+        <p className="text-t2 font-medium text-gray600">
+          예약 정보를 찾을 수 없어요.
+        </p>
         <button
           type="button"
           onClick={() => router.back()}
@@ -130,9 +68,11 @@ export default function ReservationDetailPage({ params }: { params: { id: string
   const productName = data.products[0]?.name ?? "";
   const additionalItems = data.products.slice(1).map((product) => product.name);
   const amount = data.products.reduce((sum, product) => sum + product.price, 0);
-  const carParts = [data.vehicle.brand, data.vehicle.model, FUEL_LABEL[data.vehicle.fuelType]].filter(
-    Boolean,
-  ) as string[];
+  const carParts = [
+    data.vehicle.brand,
+    data.vehicle.model,
+    FUEL_LABEL[data.vehicle.fuelType],
+  ].filter(Boolean) as string[];
 
   return (
     <main className="device-frame flex min-h-[100dvh] flex-col bg-white">
@@ -151,13 +91,25 @@ export default function ReservationDetailPage({ params }: { params: { id: string
           onClick={() => router.back()}
           className="flex h-12 w-12 items-center justify-center"
         >
-          <img src="/icons/ic_nav_back.svg" alt="" width={48} height={48} aria-hidden />
+          <img
+            src="/icons/ic_nav_back.svg"
+            alt=""
+            width={48}
+            height={48}
+            aria-hidden
+          />
         </button>
         <span className="text-t1 font-medium text-gray900">예약 요청 확인</span>
       </div>
 
       <div className="flex items-center gap-1 bg-primary-bg px-5 py-2.5">
-        <img src="/icons/ic_clock_fill.svg" alt="" width={20} height={20} aria-hidden />
+        <img
+          src="/icons/ic_clock_fill.svg"
+          alt=""
+          width={20}
+          height={20}
+          aria-hidden
+        />
         <span className="text-t1 font-semibold text-primary">
           {formatDateTime(data.reservedAt)}
         </span>
@@ -174,8 +126,16 @@ export default function ReservationDetailPage({ params }: { params: { id: string
               <ul className="flex flex-col gap-1">
                 {additionalItems.map((item) => (
                   <li key={item} className="flex items-center gap-1.5">
-                    <img src="/icons/ic_plus_circle.svg" alt="" width={16} height={16} aria-hidden />
-                    <span className="text-t1 font-medium text-gray600">{item}</span>
+                    <img
+                      src="/icons/ic_plus_circle.svg"
+                      alt=""
+                      width={16}
+                      height={16}
+                      aria-hidden
+                    />
+                    <span className="text-t1 font-medium text-gray600">
+                      {item}
+                    </span>
                   </li>
                 ))}
               </ul>
@@ -185,7 +145,9 @@ export default function ReservationDetailPage({ params }: { params: { id: string
           {data.requirements && (
             <div className="flex flex-col gap-1 rounded-[10px] border border-gray100 p-3">
               <p className="text-t2 font-medium text-gray500">요청사항</p>
-              <p className="text-t2 font-medium text-gray600">{data.requirements}</p>
+              <p className="text-t2 font-medium text-gray600">
+                {data.requirements}
+              </p>
             </div>
           )}
         </div>
@@ -198,10 +160,14 @@ export default function ReservationDetailPage({ params }: { params: { id: string
               <h2 className="text-h4 font-semibold text-gray900">고객 정보</h2>
               <div className="flex flex-col gap-1.5">
                 <InfoRow label="고객 이름">
-                  <span className="text-t1 font-semibold text-gray600">{data.customer.name}</span>
+                  <span className="text-t1 font-semibold text-gray600">
+                    {data.customer.name}
+                  </span>
                 </InfoRow>
                 <InfoRow label="전화번호">
-                  <span className="text-t1 font-medium text-gray600">{data.customer.phone}</span>
+                  <span className="text-t1 font-medium text-gray600">
+                    {data.customer.phone}
+                  </span>
                 </InfoRow>
               </div>
             </section>
@@ -215,7 +181,9 @@ export default function ReservationDetailPage({ params }: { params: { id: string
                   <span className="flex items-center gap-1.5">
                     {carParts.map((part, index) => (
                       <span key={part} className="flex items-center gap-1.5">
-                        <span className="text-t1 font-medium text-gray600">{part}</span>
+                        <span className="text-t1 font-medium text-gray600">
+                          {part}
+                        </span>
                         {index < carParts.length - 1 && (
                           <span className="h-[3px] w-[3px] rounded-full bg-gray300" />
                         )}
@@ -224,7 +192,9 @@ export default function ReservationDetailPage({ params }: { params: { id: string
                   </span>
                 </InfoRow>
                 <InfoRow label="차량 번호">
-                  <span className="text-t1 font-medium text-gray600">{data.vehicle.number}</span>
+                  <span className="text-t1 font-medium text-gray600">
+                    {data.vehicle.number}
+                  </span>
                 </InfoRow>
               </div>
             </section>
@@ -242,8 +212,12 @@ export default function ReservationDetailPage({ params }: { params: { id: string
                   </span>
                 </InfoRow>
                 <div className="flex items-center justify-between">
-                  <span className="text-t1 font-medium text-primary">총 결제금액</span>
-                  <span className="text-h4 font-bold text-primary">{formatWon(amount)}</span>
+                  <span className="text-t1 font-medium text-primary">
+                    총 결제금액
+                  </span>
+                  <span className="text-h4 font-bold text-primary">
+                    {formatWon(amount)}
+                  </span>
                 </div>
               </div>
             </section>
@@ -289,3 +263,5 @@ export default function ReservationDetailPage({ params }: { params: { id: string
     </main>
   );
 }
+
+export default ReservationDetailPage;
