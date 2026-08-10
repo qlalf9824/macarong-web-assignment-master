@@ -5,7 +5,7 @@ import {
 } from "@tanstack/react-query";
 import { redirect } from "next/navigation";
 import moment from "moment";
-import { PER_PAGE, fetchReservationsPage } from "@/lib/reservations";
+import { PER_PAGE, getReservations } from "@/lib/service/reservation";
 import ReservationList from "./_components/ReservationListClient";
 
 export const dynamic = "force-dynamic";
@@ -28,7 +28,7 @@ async function ReservationPage({
   await queryClient.prefetchInfiniteQuery({
     queryKey: ["reservations", date],
     queryFn: ({ pageParam }) =>
-      fetchReservationsPage(date, pageParam as number, Number(per_page)),
+      getReservations(date, pageParam as number, Number(per_page)),
     initialPageParam: Number(page),
   });
 
