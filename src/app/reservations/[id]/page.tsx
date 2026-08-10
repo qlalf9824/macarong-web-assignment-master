@@ -1,63 +1,19 @@
-"use client";
-
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { type ReservationDetail, toReservationDetail } from "@/lib/models";
-import { fetchReservation, writeDecision } from "@/lib/reservations";
+import { notFound } from "next/navigation";
+import { toReservationDetail } from "@/lib/models";
+import { getReservationDetail } from "@/lib/service/reservation";
 import { formatWon } from "@/lib/utils/format";
-import DecisionPopup from "./_components/DecisionPopupClient";
+import BackButton from "./_components/BackButtonClient";
+import DecisionBar from "./_components/DecisionBarClient";
 import InfoRow from "./_components/InfoRow";
 
 function ReservationDetailPage({ params }: { params: { id: string } }) {
-  const router = useRouter();
-  const { id } = params;
-  const [popup, setPopup] = useState<"confirm" | "reject" | null>(null);
+  const serverId = Number(params.id);
+  if (!Number.isInteger(serverId)) notFound();
 
-  const [data, setData] = useState<ReservationDetail | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isError, setIsError] = useState(false);
+  const detail = getReservationDetail(serverId);
+  if (!detail) notFound();
 
-  useEffect(() => {
-    setIsLoading(true);
-    setIsError(false);
-    fetchReservation(id)
-      .then((detail) => setData(toReservationDetail(detail)))
-      .catch(() => setIsError(true))
-      .finally(() => setIsLoading(false));
-  }, [id]);
-
-  function submitDecision() {
-    if (!popup) return;
-    writeDecision(id, popup === "confirm" ? "confirmed" : "rejected");
-    setPopup(null);
-    router.back();
-  }
-
-  if (isLoading) {
-    return (
-      <main className="device-frame flex items-center justify-center bg-white">
-        <p className="text-t2 font-medium text-gray500">불러오는 중…</p>
-      </main>
-    );
-  }
-
-  if (isError || !data) {
-    return (
-      <main className="device-frame flex flex-col items-center justify-center gap-3 bg-white">
-        <p className="text-t2 font-medium text-gray600">
-          예약 정보를 찾을 수 없어요.
-        </p>
-        <button
-          type="button"
-          onClick={() => router.back()}
-          className="rounded-[10px] bg-gray100 px-4 py-2 text-t2 font-medium text-gray700"
-        >
-          돌아가기
-        </button>
-      </main>
-    );
-  }
-
+  const data = toReservationDetail(detail);
   const { productTitle, productName, additionalItems } = data;
   const carParts = [data.car.brand, data.car.model, data.car.fuelLabel].filter(
     Boolean,
@@ -74,10 +30,8 @@ function ReservationDetailPage({ params }: { params: { id: string } }) {
         aria-hidden
       />
       <div className="flex h-14 items-center px-1">
-        <button
-          type="button"
-          aria-label="뒤로가기"
-          onClick={() => router.back()}
+        <BackButton
+          ariaLabel="뒤로가기"
           className="flex h-12 w-12 items-center justify-center"
         >
           <img
@@ -87,7 +41,7 @@ function ReservationDetailPage({ params }: { params: { id: string } }) {
             height={48}
             aria-hidden
           />
-        </button>
+        </BackButton>
         <span className="text-t1 font-medium text-gray900">예약 요청 확인</span>
       </div>
 
@@ -214,41 +168,7 @@ function ReservationDetailPage({ params }: { params: { id: string } }) {
         </div>
       </div>
 
-      <div className="sticky bottom-0 flex gap-2 border-t border-line-subtle bg-white px-4 py-3">
-        <button
-          type="button"
-          onClick={() => setPopup("reject")}
-          className="flex h-12 flex-1 items-center justify-center rounded-[10px] bg-gray100 text-t1 font-medium text-gray700"
-        >
-          예약 불가
-        </button>
-        <button
-          type="button"
-          onClick={() => setPopup("confirm")}
-          className="flex h-12 flex-1 items-center justify-center rounded-[10px] bg-primary text-t1 font-medium text-white"
-        >
-          예약 확정
-        </button>
-      </div>
-
-      {popup === "reject" && (
-        <DecisionPopup
-          title="작업이 어려우신가요?"
-          description="고객의 신뢰 유지를 위해 예약이 불가능한 시간은 미리 표시해주세요."
-          confirmLabel="예약 불가능"
-          onCancel={() => setPopup(null)}
-          onConfirm={submitDecision}
-        />
-      )}
-      {popup === "confirm" && (
-        <DecisionPopup
-          title="예약을 확정할까요?"
-          description="확정 후에는 고객에게 예약 완료 안내가 전송됩니다."
-          confirmLabel="확정하기"
-          onCancel={() => setPopup(null)}
-          onConfirm={submitDecision}
-        />
-      )}
+      <DecisionBar id={data.id} />
     </main>
   );
 }

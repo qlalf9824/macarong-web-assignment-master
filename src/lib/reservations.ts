@@ -1,6 +1,5 @@
 import {
   type ApiCustomer,
-  type ApiReservationDetail,
   type ApiReservationListPage,
   type DecisionStatus,
   type Reservation,
@@ -70,12 +69,4 @@ export async function fetchReservationsPage(
   );
 
   return { items, hasNext: body.hasNext, totalPages: body.totalPages };
-}
-
-export async function fetchReservation(
-  id: string,
-): Promise<ApiReservationDetail> {
-  const res = await fetch(apiUrl(`/reservations/${id}`));
-  if (!res.ok) throw new Error("예약 정보를 불러오지 못했습니다.");
-  return res.json();
 }
