@@ -1,0 +1,1732 @@
+╭─── Claude Code v2.1.226 ─────────────────────────────────────────────────────╮
+│                                                    │ Tips for getting        │
+│                 Welcome back young!                │ started                 │
+│                                                    │ Run /init to create a … │
+│                       ▐▛███▜▌                      │ ─────────────────────── │
+│                      ▝▜█████▛▘                     │ What's new              │
+│                        ▘▘ ▝▝                       │ Bug fixes and reliabil… │
+│                                                    │ Added gateway spend-li… │
+│       Opus 5 · Claude Team · Cravingcollector      │ Added a workspace trus… │
+│   ~/Documents/work/macarong-web-assignment-master  │ /release-notes for more │
+╰──────────────────────────────────────────────────────────────────────────────╯
+
+ ▎ Fable 5 is now a standard part of your Team plan
+ ▎ You can use up to 50% of your weekly usage limit on Fable 5. If you hit your limit, you can continue on Fable 5 with usage credits. Fable 5 draws down usage faster than Opus 5. Run /model and select Fable to use it. Learn more: https://support.claude.com/en/articles/15424964-claude-fable-5-promotional-access
+
+❯ /clear                                                                        
+
+❯ @src/lib/reservations.ts 에 타입, 포맷 함수, API 호출 로직이 전부 섞여 있어서 
+  분리가 필요해.                                                                
+                                                                                
+  특히 지금 구조에 문제가 하나 있어 apiUrl() 이 서버에서 실행될 때 절대 URL을   
+  만들어서, 서버 컴포넌트가 자기 자신의 Route Handler를 HTTP로 다시 호출하고    
+  있어src/lib/bff/    불필요한 왕복이라 없애고 싶어                             
+                                                                                
+  그래서 아래와 같이 구조를 변경하려고 해                                       
+                                                                                
+  1. /app/api/* -> 클라이언트가 호출할 엔드포인트, Route Handler는 service를    
+  호출해 응답만 감싸는 얇은 층으로 유지                                         
+  2. /lib/service/ 생성 -> 실제 데이터 소스에 접근하는 함수 모음, Route Handler 
+  와 서버 컴포넌트가 공통으로 사용                                              
+  3. /lib/api/ 생성 ->  클라이언트 컴포넌트에서 /api/* 를 fetch 하는 함수 정의  
+  4. /lib/models/ -> 서버와 클라이언트가 굥유하는 타입 정의                     
+  5. /lib/utils/ -> 포맷 함수를 포함한 유틸 함수 정의                           
+                                                                                
+  먼저 toTime, formatDateHeader, formatDateTime, addDays, formatWon 함수를      
+  utils/format.ts 파일에 추가하는 작업 먼저 해줄래?                             
+  ⎿  Read src/lib/reservations.ts (182 lines)
+
+  Searched for 1 pattern, read 2 files, ran 1 shell command (ctrl+o to expand)
+
+⏺ Now creating src/lib/utils/format.ts and updating the imports.
+
+⏺ Write(src/lib/utils/format.ts)
+  ⎿  Wrote 24 lines to src/lib/utils/format.ts
+       1 import moment from "moment";
+       2 import "moment/min/locales";
+       3 
+       4 moment.locale("ko");
+       5 
+       6 export function toTime(reservedAt: string): string {
+       7   return moment(reservedAt).format("A h:mm");
+       8 }
+       9 
+      10 export function formatDateHeader(date: string): string {
+     … +14 lines (ctrl+o to expand)
+
+⏺ Update(src/lib/reservations.ts)
+  ⎿  Added 1 line, removed 4 lines
+      1 -import moment from "moment";                                    
+      2 -import "moment/min/locales";                                    
+      1 +import { toTime } from "@/lib/utils/format";                    
+      2  
+      4 -moment.locale("ko");                                            
+      5 -                                                                
+      3  // BFF(Next.js Route Handler) 경유. 실제 데이터는 src/app/api/* 
+         에서 목으로 제공한다.
+      4  export const API_BASE = "/api";
+      5  export const PER_PAGE = 10;
+
+⏺ Update(src/lib/reservations.ts)
+  ⎿  Removed 20 lines
+       81    status: UiStatus;
+       82  }
+       83  
+       84 -export function toTime(reservedAt: string): string {          
+       85 -  return moment(reservedAt).format("A h:mm");                 
+       86 -}                                                             
+       87 -                                                              
+       88 -export function formatDateHeader(date: string): string {      
+       89 -  return moment(date).format("M월 D일 ddd");                  
+       90 -}                                                             
+       91 -                                                              
+       92 -export function formatDateTime(reservedAt: string): string {  
+       93 -  return moment(reservedAt).format("YYYY년 M월 D일 (ddd) A h:m
+          -m");                                                          
+       94 -}                                                             
+       95 -                                                              
+       96 -export function addDays(date: string, days: number): string { 
+       97 -  return moment(date).add(days, "day").format("YYYY-MM-DD");  
+       98 -}                                                             
+       99 -                                                              
+      100 -export function formatWon(amount: number): string {           
+      101 -  return `${amount.toLocaleString("ko-KR")}원`;               
+      102 -}                                                             
+      103 -                                                              
+       84  export function visitLabel(visitCount: number): string {
+       85    if (visitCount === 0) return "신규 고객";
+       86    return `${visitCount}회 방문`;
+
+⏺ Update(src/app/reservations/[id]/page.tsx)
+  ⎿  Added 1 line, removed 2 lines
+       7    PAYMENT_LABEL,
+       8    type ApiDetail,
+       9    fetchReservation,
+      10 -  formatDateTime,                                              
+      11 -  formatWon,                                                   
+      10    writeDecision,
+      11  } from "@/lib/reservations";
+      12 +import { formatDateTime, formatWon } from "@/lib/utils/format";
+      13  import DecisionPopup from "./_components/DecisionPopupClient";
+      14  import InfoRow from "./_components/InfoRow";
+      15  
+
+⏺ Update(src/app/reservations/_components/ReservationListClient.tsx)
+  ⎿  Added 2 lines, removed 6 lines
+       3  import { useEffect, useMemo, useRef, useState } from "react";
+       4  import { useRouter, useSearchParams } from "next/navigation";
+       5  import { useInfiniteQuery } from "@tanstack/react-query";
+       6 -import {                                                       
+       7 -  addDays,                                                     
+       8 -  fetchReservationsPage,                                       
+       9 -  formatDateHeader,                                            
+      10 -  type Reservation,                                            
+      11 -} from "@/lib/reservations";                                   
+       6 +import { fetchReservationsPage, type Reservation } from "@/lib/
+         +reservations";                                                 
+       7 +import { addDays, formatDateHeader } from "@/lib/utils/format";
+       8  import ReservationCard from "./ReservationCardClient";
+       9  
+      10  function ReservationListClient() {
+
+  Ran 1 shell command (ctrl+o to expand)
+
+⏺ src/lib/utils/format.ts 생성하고 이동 완료했어. tsc --noEmit, next lint 모두
+  통과.
+
+  변경 내용
+
+  - src/lib/utils/format.ts (신규): toTime, formatDateHeader, formatDateTime,
+  addDays, formatWon. moment import와 moment.locale("ko") 도 여기로 옮겼어 —
+  이제 날짜 포맷을 실제로 쓰는 모듈이 로케일 설정을 소유해.
+  - src/lib/reservations.ts: 해당 함수 5개 제거, moment 의존성도 사라짐.
+  내부에서 쓰는 toTime만 @/lib/utils/format에서 import.
+  - src/app/reservations/[id]/page.tsx,
+  src/app/reservations/_components/ReservationListClient.tsx: 포맷 함수 import
+  경로를 @/lib/utils/format으로 분리.
+
+  하위 호환용 re-export는 두지 않았어 (호출부가 4곳뿐이라 전부 새 경로로 갱신).
+  다음 단계인 models/, service/, api/ 분리와 apiUrl() 제거로 넘어갈까?
+
+✻ Brewed for 1m 28s
+
+※ recap: Goal is splitting src/lib/reservations.ts into models/service/api/utils and dropping the self-HTTP apiUrl round trip. The five format functions now live in src/lib/utils/format.ts and typecheck plus lint pass. Next: extract the shared types into src/lib/models/. (disable recaps in /config)
+
+❯ 이번에는 src/lib/models에  모델 분리 작업을 하려고 해                         
+                                                                                
+  기존의 타입 참고해서 아래와 같이 추가해줘                                     
+  서버 응답 타입                                                                
+  - ApiReservationListPage   목록 응답 껍데기                                   
+  - ApiReservationListItem   목록 응답의 한 행                                  
+  - ApiReservationDetail     상세 응답                                          
+  - ApiCustomer / ApiVehicle 고객 응답                                          
+  - ApiProduct               상품                                               
+                                                                                
+  화면 모델                                                                     
+  - interface Reservation        목록 화면 모델                                 
+  - interface ReservationDetail  상세 화면 모델                                 
+  - toReservation / toReservationDetail                                         
+
+  Searched for 1 pattern, read 4 files (ctrl+o to expand)
+
+⏺ 모델을 3개 파일로 나누고 배럴을 두는 구조로 가겠어. 먼저 모델 파일들:
+
+⏺ Write(src/lib/models/product.ts)
+  ⎿  Wrote 7 lines to src/lib/models/product.ts
+      1 /** 예약에 포함된 상품 한 건. 첫 번째가 메인 상품, 나머지는 추가 
+        상품이다. */
+      2 export interface ApiProduct {
+      3   group: string;
+      4   name: string;
+      5   price: number;
+      6   quantity: number;
+      7 }
+
+⏺ Write(src/lib/models/customer.ts)
+  ⎿  Wrote 32 lines to src/lib/models/customer.ts
+       1 export const FUEL_LABEL: Record<string, string> = {
+       2   PREMIUM_GASOLINE: "고급 휘발유",
+       3   GASOLINE: "일반 휘발유",
+       4   DIESEL: "경유",
+       5   LPG: "LPG",
+       6   ELECTRICITY: "전기",
+       7 };
+       8 
+       9 export interface ApiVehicle {
+      10   brand: string;
+     … +22 lines (ctrl+o to expand)
+
+⏺ Write(src/lib/models/reservation.ts)
+  ⎿  Wrote 133 lines to src/lib/models/reservation.ts
+       1 import { type ApiCustomer, type ApiVehicle, fuelLabel, visitLabe
+         l } from "@/lib/models/customer";
+       2 import type { ApiProduct } from "@/lib/models/product";
+       3 import { formatDateTime, toTime } from "@/lib/utils/format";
+       4 
+       6   CARD: "카드결제",
+       7   BANK: "계좌이체",
+       8   VBANK: "무통장입금",
+       9   ONSITE: "현장결제",
+      10 };
+     … +133 lines (ctrl+o to expand)
+
+⏺ Write(src/lib/models/index.ts)
+  ⎿  Wrote 3 lines to src/lib/models/index.ts
+      1 export * from "./customer";
+      2 export * from "./product";
+      3 export * from "./reservation";
+⏺ 이제 reservations.ts에서 옮겨간 타입/헬퍼를 제거하고 모델을 쓰도록 갱신:
+
+  Read 1 file (ctrl+o to expand)
+
+⏺ Write(src/lib/reservations.ts)
+  ⎿  Added 17 lines, removed 94 lines
+       1 -import { toTime } from "@/lib/utils/format";                   
+       1 +import {                                                       
+       2 +  type ApiCustomer,                                            
+       3 +  type ApiReservationDetail,                                   
+       4 +  type ApiReservationListPage,                                 
+       5 +  type DecisionStatus,                                         
+       6 +  type Reservation,                                            
+       7 +  type UiStatus,                                               
+       8 +  toReservation,                                               
+       9 +} from "@/lib/models";                                         
+      10  
+      11  // BFF(Next.js Route Handler) 경유. 실제 데이터는 src/app/api/*
+           에서 목으로 제공한다.
+      12  export const API_BASE = "/api";
+     ...
+      24    return `${origin}${API_BASE}${path}`;
+      25  }
+      26  
+      19 -export const PAYMENT_LABEL: Record<string, string> = {         
+      20 -  CARD: "카드결제",                                            
+      21 -  BANK: "계좌이체",                                            
+      22 -  VBANK: "무통장입금",                                         
+      23 -  ONSITE: "현장결제",                                          
+      24 -};                                                             
+      25 -                                                               
+      26 -export const FUEL_LABEL: Record<string, string> = {            
+      27 -  PREMIUM_GASOLINE: "고급 휘발유",                             
+      28 -  GASOLINE: "일반 휘발유",                                     
+      29 -  DIESEL: "경유",                                              
+      30 -  LPG: "LPG",                                                  
+      31 -  ELECTRICITY: "전기",                                         
+      32 -};                                                             
+      33 -                                                               
+      34 -export type UiStatus = "pending" | "confirmed" | "rejected" | "
+         -canceled";                                                     
+      35 -export type DecisionStatus = "confirmed" | "rejected";         
+      36 -                                                               
+      37 -export interface ApiProduct {                                  
+      38 -  group: string;                                               
+      39 -  name: string;                                                
+      40 -  price: number;                                               
+      41 -  quantity: number;                                            
+      42 -}                                                              
+      43 -                                                               
+      44 -export interface ApiListItem {                                 
+      45 -  serverId: number;                                            
+      46 -  customerId: number;                                          
+      47 -  status: string;                                              
+      48 -  reservedAt: string;                                          
+      49 -  requirements: string;                                        
+      50 -  products: ApiProduct[];                                      
+      51 -  paymentMethod: string;                                       
+      52 -}                                                              
+      53 -                                                               
+      54 -export interface ApiCustomer {                                 
+      55 -  serverId: number;                                            
+      56 -  name: string;                                                
+      57 -  phone: string;                                               
+      58 -  vehicle: { brand: string; model: string; number: string; fuel
+         -Type: string };                                                
+      59 -  visitCount: number;                                          
+      60 -}                                                              
+      61 -                                                               
+      62 -export interface ApiDetail {                                   
+      63 -  serverId: number;                                            
+      64 -  status: string;                                              
+      65 -  reservedAt: string;                                          
+      66 -  requirements: string;                                        
+      67 -  customer: { serverId: number; name: string; phone: string }; 
+      68 -  vehicle: { brand: string; model: string; number: string; fuel
+         -Type: string };                                                
+      69 -  products: ApiProduct[];                                      
+      70 -  paymentMethod: string;                                       
+      71 -}                                                              
+      72 -                                                               
+      73 -export interface Reservation {                                 
+      74 -  id: string;                                                  
+      75 -  time: string;                                                
+      76 -  productName: string;                                         
+      77 -  additionalItems: string[];                                   
+      78 -  car: { name: string; number: string };                       
+      79 -  customer: { name: string; phone: string; visitLabel: string }
+         -;                                                              
+      80 -  requestMessage?: string;                                     
+      81 -  status: UiStatus;                                            
+      82 -}                                                              
+      83 -                                                               
+      84 -export function visitLabel(visitCount: number): string {       
+      85 -  if (visitCount === 0) return "신규 고객";                    
+      86 -  return `${visitCount}회 방문`;                               
+      87 -}                                                              
+      88 -                                                               
+      89 -export function toStatus(apiStatus: string): UiStatus {        
+      90 -  if (apiStatus === "CANCELLED" || apiStatus === "DEFERRED") re
+         -turn "canceled";                                               
+      91 -  if (apiStatus === "CONFIRMED" || apiStatus === "COMPLETED")  
+      92 -    return "confirmed";                                        
+      93 -  return "pending";                                            
+      94 -}                                                              
+      95 -                                                               
+      27  export function readDecisions(): Record<string, UiStatus> {
+      28    if (typeof window === "undefined") return {};
+      29    try {
+     ...
+       52      apiUrl(`/reservations?date=${date}&page=${page}&per_page=$
+           {perPage}`),
+       53    );
+       54    if (!res.ok) throw new Error("예약 목록을 불러오지 못했습니
+           다.");
+      124 -  const body: { data: ApiListItem[]; totalPages: number; hasNe
+          -xt: boolean } =                                               
+      125 -    await res.json();                                         
+       55 +  const body: ApiReservationListPage = await res.json();      
+       56  
+       57    const decisions = readDecisions();
+       58  
+     ...
+       60      body.data.map(async (item) => {
+       61        const customerRes = await fetch(apiUrl(`/customers/${ite
+           m.customerId}`));
+       62        const customer: ApiCustomer = await customerRes.json();
+      133 -      const id = String(item.serverId);                       
+       63 +      const reservation = toReservation(item, customer);      
+       64 +      // 로컬에 저장한 확정/불가 결정이 있으면 서버 상태보다  
+          +우선한다.                                                     
+       65        return {
+      135 -        id,                                                   
+      136 -        time: toTime(item.reservedAt),                        
+      137 -        productName: item.products[0]?.name ?? "",            
+      138 -        additionalItems: item.products.slice(1).map((product) 
+          -=> product.name),                                             
+      139 -        car: { name: customer.vehicle.model, number: customer.
+          -vehicle.number },                                             
+      140 -        customer: {                                           
+      141 -          name: customer.name,                                
+      142 -          phone: customer.phone,                              
+      143 -          visitLabel: visitLabel(customer.visitCount),        
+      144 -        },                                                    
+      145 -        requestMessage: item.requirements || undefined,       
+      146 -        status: decisions[id] ?? toStatus(item.status),       
+       66 +        ...reservation,                                       
+       67 +        status: decisions[reservation.id] ?? reservation.statu
+          +s,                                                            
+       68        };
+       69      }),
+       70    );
+     ...
+       72    return { items, hasNext: body.hasNext, totalPages: body.tota
+           lPages };
+       73  }
+       74  
+      154 -export async function fetchReservation(id: string): Promise<Ap
+          -iDetail> {                                                    
+       75 +export async function fetchReservation(                       
+       76 +  id: string,                                                 
+       77 +): Promise<ApiReservationDetail> {                            
+       78    const res = await fetch(apiUrl(`/reservations/${id}`));
+       79    if (!res.ok) throw new Error("예약 정보를 불러오지 못했습니
+           다.");
+       80    return res.json();
+
+⏺ Now the consumers — mock, card, list, detail page:
+
+⏺ Update(src/app/api/_lib/mock.ts)
+  ⎿  Added 7 lines, removed 1 line
+      12   *    (id = 날짜번호 * ID_BASE + 그날의 순번)
+      13   *    그래서 목록을 거치지 않고 상세 URL로 바로 들어와도, id만 
+          보고 그 예약을 다시 만들어 낼 수 있습니다.
+      14   */
+      15 -import type { ApiCustomer, ApiDetail, ApiListItem, ApiProduct }
+         - from "@/lib/reservations";                                    
+      15 +import type {                                                  
+      16 +  ApiCustomer,                                                 
+      17 +  ApiProduct,                                                  
+      18 +  ApiReservationDetail,                                        
+      19 +  ApiReservationListItem,                                      
+      20 +  ApiReservationListPage,                                      
+      21 +} from "@/lib/models";                                         
+      22  
+      23  const CUSTOMER_COUNT = 120;
+      24  /** 예약 id 인코딩에 쓰는 자릿수 기준. "하루 예약은 10만 건을 
+          넘지 않는다"는 전제로 잡았다. */
+
+⏺ Update(src/app/api/_lib/mock.ts)
+  ⎿  Added 1 line, removed 1 line
+      237  }
+      238  
+      239  // ── 예약 데이터 ────────────────────────────────────────────
+           ──
+      240 -type MockReservation = ApiListItem;                           
+      240 +type MockReservation = ApiReservationListItem;                
+      241  
+      242  // 한 번 만든 날짜의 예약 목록은 캐시해 둔다. (같은 날짜를 또 
+           요청하면 재사용)
+      243  const dayCache = new Map<string, MockReservation[]>();
+
+⏺ Update(src/app/api/_lib/mock.ts)
+  ⎿  Added 1 line, removed 7 lines
+      301  }
+      302  
+      303  // ── Route Handler 에서 호출하는 조회 함수들 ────────────────
+           ──
+      304 -export interface ReservationsPageResponse {                   
+      305 -  data: ApiListItem[];                                        
+      306 -  totalPages: number;                                         
+      307 -  hasPrevious: boolean;                                       
+      308 -  hasNext: boolean;                                           
+      309 -}                                                             
+      304  
+      305  /** 예약 목록 (날짜 + 페이지). page 는 0부터 시작하며, per_pag
+           e 개수만큼 잘라서 내려준다. */
+      306  export function getReservationsPage(
+      307    date: string | null,
+      308    page: number,
+      309    perPage: number,
+      316 -): ReservationsPageResponse {                                 
+      310 +): ApiReservationListPage {                                   
+      311    const all = isValidDate(date) ? generateDay(date) : [];
+      312    const totalPages = perPage > 0 ? Math.ceil(all.length / perP
+           age) : 0;
+      313    const start = page * perPage;
+
+⏺ Update(src/app/api/_lib/mock.ts)
+  ⎿  Added 3 lines, removed 1 line
+      322  }
+      323  
+      324  /** 예약 상세 (목록 항목 + 고객 정보를 합쳐 상세 응답 형태로 
+           만든다.) */
+      325 -export function getReservationDetail(serverId: number): ApiDet
+          -ail | null {                                                  
+      325 +export function getReservationDetail(                         
+      326 +  serverId: number,                                           
+      327 +): ApiReservationDetail | null {                              
+      328    const reservation = findReservation(serverId);
+      329    if (!reservation) return null;
+      330  
+
+⏺ Update(src/app/reservations/_components/ReservationCardClient.tsx)
+  ⎿  Added 1 line, removed 1 line
+      1  "use client";
+      2  
+      3  import { useRouter } from "next/navigation";
+      4 -import type { Reservation, UiStatus } from "@/lib/reservations";
+      4 +import type { Reservation, UiStatus } from "@/lib/models";      
+      5  
+      6  const STATUS_BADGE: Partial<
+      7    Record<UiStatus, { label: string; className: string }>
+
+⏺ Update(src/app/reservations/_components/ReservationListClient.tsx)
+  ⎿  Added 2 lines, removed 1 line
+       3  import { useEffect, useMemo, useRef, useState } from "react";
+       4  import { useRouter, useSearchParams } from "next/navigation";
+       5  import { useInfiniteQuery } from "@tanstack/react-query";
+       6 -import { fetchReservationsPage, type Reservation } from "@/lib/
+         -reservations";                                                 
+       6 +import type { Reservation } from "@/lib/models";               
+       7 +import { fetchReservationsPage } from "@/lib/reservations";    
+       8  import { addDays, formatDateHeader } from "@/lib/utils/format";
+       9  import ReservationCard from "./ReservationCardClient";
+      10  
+
+⏺ Detail page → ReservationDetail 화면 모델 사용:
+
+⏺ Update(src/app/reservations/[id]/page.tsx)
+  ⎿  Added 3 lines, removed 8 lines
+       2  
+       3  import { useEffect, useState } from "react";
+       4  import { useRouter } from "next/navigation";
+       5 -import {                                                       
+       6 -  FUEL_LABEL,                                                  
+       7 -  PAYMENT_LABEL,                                               
+       8 -  type ApiDetail,                                              
+       9 -  fetchReservation,                                            
+      10 -  writeDecision,                                               
+      11 -} from "@/lib/reservations";                                   
+      12 -import { formatDateTime, formatWon } from "@/lib/utils/format";
+       5 +import { type ReservationDetail, toReservationDetail } from "@/
+         +lib/models";                                                   
+       6 +import { fetchReservation, writeDecision } from "@/lib/reservat
+         +ions";                                                         
+       7 +import { formatWon } from "@/lib/utils/format";                
+       8  import DecisionPopup from "./_components/DecisionPopupClient";
+       9  import InfoRow from "./_components/InfoRow";
+      10  
+
+⏺ Update(src/app/reservations/[id]/page.tsx)
+  ⎿  Added 1 line, removed 1 line
+      13    const { id } = params;
+      14    const [popup, setPopup] = useState<"confirm" | "reject" | nul
+          l>(null);
+      15  
+      16 -  const [data, setData] = useState<ApiDetail | null>(null);    
+      16 +  const [data, setData] = useState<ReservationDetail | null>(nu
+         +ll);                                                           
+      17    const [isLoading, setIsLoading] = useState(true);
+      18    const [isError, setIsError] = useState(false);
+      19  
+
+⏺ Update(src/app/reservations/[id]/page.tsx)
+  ⎿  Added 1 line, removed 1 line
+      21      setIsLoading(true);
+      22      setIsError(false);
+      23      fetchReservation(id)
+      24 -      .then(setData)                                           
+      24 +      .then((detail) => setData(toReservationDetail(detail)))  
+      25        .catch(() => setIsError(true))
+      26        .finally(() => setIsLoading(false));
+      27    }, [id]);
+
+⏺ Update(src/app/reservations/[id]/page.tsx)
+  ⎿  Added 4 lines, removed 9 lines
+      58      );
+      59    }
+      60  
+      61 -  const productTitle = data.products[0]?.group ?? "";          
+      62 -  const productName = data.products[0]?.name ?? "";            
+      63 -  const additionalItems = data.products.slice(1).map((product) 
+         -=> product.name);                                              
+      64 -  const amount = data.products.reduce((sum, product) => sum + p
+         -roduct.price, 0);                                              
+      65 -  const carParts = [                                           
+      66 -    data.vehicle.brand,                                        
+      67 -    data.vehicle.model,                                        
+      68 -    FUEL_LABEL[data.vehicle.fuelType],                         
+      69 -  ].filter(Boolean) as string[];                               
+      61 +  const { productTitle, productName, additionalItems } = data; 
+      62 +  const carParts = [data.car.brand, data.car.model, data.car.fu
+         +elLabel].filter(                                               
+      63 +    Boolean,                                                   
+      64 +  );                                                           
+      65  
+      66    return (
+      67      <main className="device-frame flex min-h-[100dvh] flex-col 
+          bg-white">
+
+⏺ Update(src/app/reservations/[id]/page.tsx)
+  ⎿  Added 1 line, removed 1 line
+      100            aria-hidden
+      101          />
+      102          <span className="text-t1 font-semibold text-primary">
+      103 -          {formatDateTime(data.reservedAt)}                   
+      103 +          {data.reservedAtLabel}                              
+      104          </span>
+      105        </div>
+      106  
+
+⏺ Update(src/app/reservations/[id]/page.tsx)
+  ⎿  Added 2 lines, removed 2 lines
+      131              )}
+      132            </div>
+      133  
+      134 -          {data.requirements && (                             
+      134 +          {data.requestMessage && (                           
+      135              <div className="flex flex-col gap-1 rounded-[10px]
+            border border-gray100 p-3">
+      136                <p className="text-t2 font-medium text-gray500">
+           요청사항</p>
+      137                <p className="text-t2 font-medium text-gray600">
+      138 -                {data.requirements}                           
+      138 +                {data.requestMessage}                         
+      139                </p>
+      140              </div>
+      141            )}
+
+⏺ Update(src/app/reservations/[id]/page.tsx)
+  ⎿  Added 1 line, removed 1 line
+      182                  </InfoRow>
+      183                  <InfoRow label="차량 번호">
+      184                    <span className="text-t1 font-medium text-gr
+           ay600">
+      185 -                    {data.vehicle.number}                     
+      185 +                    {data.car.number}                         
+      186                    </span>
+      187                  </InfoRow>
+      188                </div>
+
+⏺ Update(src/app/reservations/[id]/page.tsx)
+  ⎿  Added 1 line, removed 1 line
+      197                <div className="flex flex-col gap-1.5">
+      198                  <InfoRow label="결제방법">
+      199                    <span className="text-t1 font-medium text-gr
+           ay600">
+      200 -                    {PAYMENT_LABEL[data.paymentMethod] ?? data
+          -.paymentMethod}                                               
+      200 +                    {data.payment.methodLabel}                
+      201                    </span>
+      202                  </InfoRow>
+      203                  <div className="flex items-center justify-betw
+           een">
+
+⏺ Update(src/app/reservations/[id]/page.tsx)
+  ⎿  Added 1 line, removed 1 line
+      205                      총 결제금액
+      206                    </span>
+      207                    <span className="text-h4 font-bold text-prim
+           ary">
+      208 -                    {formatWon(amount)}                       
+      208 +                    {formatWon(data.payment.totalAmount)}     
+      209                    </span>
+      210                  </div>
+      211                </div>
+
+  Ran 2 shell commands (ctrl+o to expand)
+
+⏺ src/lib/models/ 분리 완료. tsc --noEmit, next lint, next build 모두 통과.
+
+  새 파일
+
+  models/product.ts — ApiProduct
+
+  models/customer.ts — ApiVehicle, ApiCustomer, FUEL_LABEL, fuelLabel(),
+  visitLabel()
+
+  models/reservation.ts
+  - 서버 응답: ApiReservationListPage(data/totalPages/hasPrevious/hasNext),
+  ApiReservationListItem, ApiReservationDetail, PAYMENT_LABEL
+  - 화면 모델: UiStatus, DecisionStatus, Reservation, ReservationDetail
+  - 매퍼: toStatus, toReservation(item, customer), toReservationDetail(detail)
+
+  models/index.ts — 배럴. 소비자는 @/lib/models 하나로 import.
+
+  설계 결정 3가지
+
+  1. ApiReservationDetail.customer는 Pick<ApiCustomer, "serverId" | "name" | 
+  "phone"> — 상세 응답의 고객 필드가 ApiCustomer의 부분집합이라는 관계를
+  타입으로 드러냈어.
+  2. 매퍼는 순수 함수로 유지 — toReservation은 localStorage 결정값을 모른다.
+  기존 decisions[id] ?? toStatus(...) 오버라이드는
+  호출부(fetchReservationsPage)가 매퍼 결과 위에 덮어쓰는 방식으로 옮겼어. 모델
+  레이어가 브라우저 스토리지에 의존하지 않게 하려고.
+  3. ReservationDetail이 화면 조립 로직을 흡수 — 상세 페이지에 흩어져 있던
+  products[0].group, slice(1), reduce로 총액 계산, FUEL_LABEL[...],
+  PAYMENT_LABEL[...] ?? raw 폴백이 전부 toReservationDetail로 들어갔어. 페이지는
+  이제 data.payment.methodLabel, data.payment.totalAmount 처럼 읽기만 해.
+  (totalAmount는 숫자로 두고 formatWon은 페이지에서 호출 — 금액 스타일링은 화면
+  책임이라 판단)
+
+  함께 정리된 것
+
+  - mock.ts의 ReservationsPageResponse 삭제 → ApiReservationListPage로 통일. 목
+  응답과 클라이언트 파싱 타입이 이제 같은 정의를 공유해.
+  - reservations.ts는 API_BASE/PER_PAGE/apiUrl/readDecisions/writeDecision/fetch
+  함수만 남았어 (182줄 → 80줄).
+
+  다음은 service/ 분리 + apiUrl() 제거로 갈까? 그 단계에서
+  readDecisions/writeDecision도 어디로 둘지 정해야 해 — 서버가 알 필요 없는
+  클라이언트 전용 상태라서 utils/ 나 별도 store 후보야.
+✻ Brewed for 3m 28s
+
+※ recap: Goal is splitting src/lib/reservations.ts into utils/models/service/api layers. Format utils and models are done and building clean. Next step is creating lib/service/ so server components call data directly, removing apiUrl().
+
+❯ 다음은 서버 컴포넌트가 자기 자신의 Route Handler를 HTTP로 호출하는 문제를     
+  없애려고 해                                                                   
+  그래서 이번에는 서버 컴포넌트에서 호출할 수 있는 서비스 레이어를 만드려고 해  
+                                                                                
+  src/lib/service/                                                              
+    mock.ts  <- src/app/api/_lib/mock.ts 를 그대로 이동                         
+    reservation.ts   getReservationsPage / getReservationDetail                 
+    customer.ts      getCustomer                                                
+                                                                                
+  - 모든 service 파일 맨 위에 import "server-only" 를 넣어서, 클라이언트        
+  컴포넌트에서 실수로 import 하면 빌드 타임에 에러가 나게 해줘                  
+  - mock 에 같은 이름의 함수가 있을 경우에는 mock.get.. 으로 호출하도록 해줘    
+  - app/api/reservations/route.ts, app/api/reservations/[id]/route.ts,          
+  app/api/customers/[id]/route.ts 에서 mock 을 직접 import 하고 있는데 service  
+  함수를 호출하도록 변경해줘                                                    
+
+  Read 1 file, listed 2 directories, ran 1 shell command (ctrl+o to expand)
+
+⏺ Update(src/lib/service/mock.ts)
+  ⎿  Added 1 line
+      12   *    (id = 날짜번호 * ID_BASE + 그날의 순번)
+      13   *    그래서 목록을 거치지 않고 상세 URL로 바로 들어와도, id만 
+          보고 그 예약을 다시 만들어 낼 수 있습니다.
+      14   */
+      15 +import "server-only";                                          
+      16  import type {
+      17    ApiCustomer,
+      18    ApiProduct,
+
+⏺ Write(src/lib/service/reservation.ts)
+  ⎿  Wrote 28 lines to src/lib/service/reservation.ts
+       1 import "server-only";
+         m "@/lib/models";
+       3 import * as mock from "@/lib/service/mock";
+       4 
+       6  * 예약 데이터에 접근하는 서비스 레이어.
+       7  * Route Handler 와 서버 컴포넌트가 공통으로 사용한다. (서버 컴
+       8  * Route Handler를 HTTP로 다시 호출하지 않도록, 데이터 소스를 함
+         수 호출로 직접 읽는다.)
+       9  *
+         버로 바뀌어도
+     … +22 lines (ctrl+o to expand)
+
+⏺ Write(src/lib/service/customer.ts)
+  ⎿  Wrote 8 lines to src/lib/service/customer.ts
+      1 import "server-only";
+      2 import type { ApiCustomer } from "@/lib/models";
+      3 import * as mock from "@/lib/service/mock";
+      4 
+      5 /** 고객 방문 정보. 없으면 null */
+      6 export function getCustomer(serverId: number): ApiCustomer | null
+         {
+      7   return mock.getCustomer(serverId);
+      8 }
+
+⏺ Route Handler들이 service를 호출하도록 변경:
+
+⏺ Update(src/app/api/reservations/route.ts)
+  ⎿  Added 1 line, removed 1 line
+      1  import { type NextRequest, NextResponse } from "next/server";
+      2 -import { getReservationsPage } from "@/app/api/_lib/mock";      
+      2 +import { getReservationsPage } from "@/lib/service/reservation";
+      3  
+      4  /** GET /api/reservations?date={YYYY-MM-DD}&page={1}&per_page={2
+         0} */
+      5  export function GET(request: NextRequest) {
+
+⏺ Update(src/app/api/reservations/[id]/route.ts)
+  ⎿  Added 1 line, removed 1 line
+      1  import { NextResponse } from "next/server";
+      2 -import { getReservationDetail } from "@/app/api/_lib/mock";     
+      2 +import { getReservationDetail } from "@/lib/service/reservation"
+        +;                                                               
+      3  
+      4  /** GET /api/reservations/{serverId} */
+      5  export function GET(_request: Request, { params }: { params: { i
+         d: string } }) {
+
+⏺ Update(src/app/api/customers/[id]/route.ts)
+  ⎿  Added 1 line, removed 1 line
+      1  import { NextResponse } from "next/server";
+      2 -import { getCustomer } from "@/app/api/_lib/mock";              
+      2 +import { getCustomer } from "@/lib/service/customer";           
+      3  
+      4  /** GET /api/customers/{id} */
+      5  export function GET(_request: Request, { params }: { params: { i
+         d: string } }) {
+
+  Ran 1 shell command (ctrl+o to expand)
+
+⏺ 가드가 실제로 동작하는지 확인해볼게 — 클라이언트 컴포넌트에서 service를 import
+  해보고 빌드:
+
+  Ran 1 shell command (ctrl+o to expand)
+
+⏺ 테스트가 잘못됐어 — import를 1행에 넣어서 "use client"가 밀려났고, 그래서 서버
+  컴포넌트로 취급됐어. 지시자 아래에 넣어서 다시:
+
+⏺ Update(src/app/reservations/_components/ReservationCardClient.tsx)
+  ⎿  Added 2 lines
+      1  "use client";
+      2  
+      3 +import { getCustomer } from "@/lib/service/customer";           
+      4 +console.log(getCustomer);                                       
+      5  import { useRouter } from "next/navigation";
+      6  import type { Reservation, UiStatus } from "@/lib/models";
+      7  
+
+  Ran 2 shell commands (ctrl+o to expand)
+
+⏺ src/lib/service/ 생성 완료. 빌드/타입체크/린트 통과, 클라이언트 컴포넌트는
+  원복했어.
+
+  변경 내용
+
+  src/lib/service/mock.ts — src/app/api/_lib/mock.ts를 git mv로 그대로 이동
+  (rename으로 추적됨, 내용 변경은 맨 위 import "server-only"; 한 줄뿐). _lib
+  디렉터리는 비어서 제거.
+
+  src/lib/service/reservation.ts — getReservationsPage(date, page, perPage),
+  getReservationDetail(serverId). 이름이 겹치므로 import * as mock 후
+  mock.getReservationsPage(...)로 위임.
+
+  src/lib/service/customer.ts — getCustomer(serverId) → mock.getCustomer(...).
+
+  Route Handler 3개 — 이제 mock이 아니라 service를 import. 목 데이터라는 사실이
+  service 뒤로 완전히 숨어서, 실제 서버로 교체할 때 Route Handler와 서버
+  컴포넌트는 손댈 필요가 없어.
+
+  server-only 가드 검증
+
+  server-only는 package.json에 없지만 Next 14가 next/dist/compiled/server-only로
+  내부 alias를 걸어줘서 설치 없이 동작해. 실제로 막히는지 확인하려고
+  ReservationCardClient.tsx("use client")에 getCustomer import를 넣고
+  빌드했더니:
+
+  Failed to compile.
+  ./src/lib/service/customer.ts
+    x You're importing a component that needs server-only.
+   1 | import "server-only";
+  Import trace for requested module:
+  ./src/lib/service/customer.ts
+  ./src/app/reservations/_components/ReservationCardClient.tsx
+  ./src/app/reservations/_components/ReservationListClient.tsx
+
+  의도대로 빌드 타임에 막히고, import 경로도 추적해서 보여줘. 확인 후 원복했고
+  클린 상태에서 다시 빌드 성공.
+
+  남은 왕복
+
+  service는 준비됐지만 아직 아무도 안 쓰고 있어 — reservations/page.tsx(서버
+  컴포넌트)는 여전히 fetchReservationsPage로 자기 Route Handler를 HTTP 호출해.
+  이게 다음 단계고, 여기서 왕복이 실제로 사라져. 참고로 그 함수는 목록 10건마다
+  /api/customers/{id}를 건당 1회씩 더 호출하고 있어서(N+1), 서버에서는
+  getCustomer를 직접 부르면 HTTP 왕복 11회가 0회가 돼.
+
+  다음 단계로 lib/api/ 생성 + page.tsx를 service 기반으로 전환할까?
+
+✻ Brewed for 2m 22s
+
+※ recap: Goal: split src/lib/reservations.ts into utils, models, service, and api layers to remove the server component's HTTP round-trip to its own Route Handler. Done: utils/format.ts, models/, and service/ (Route Handlers now call service). Next: create lib/api/ and switch reservations/page.tsx to call service directly.
+
+❯ 다음은 @src/app/reservations/[id]/page.tsx 를 서버 컴포넌트로 만들어줘        
+                                                                                
+  - fetchReservation 을 제거하고 @src/lib/service/reservation.ts                
+  getReservationDetail 을 사용하도록 해줘                                       
+  - 서버 컴포넌트로 변경되면서 클라이언트 로직은 컴포넌트 만들어서 분리해줘     
+  - @src/app/api/reservations/[id]/ 은 삭제해줘                                 
+  - 지금의 isLoading / isError 분기가 서버 컴포넌트에서는 사라지니까, 같은      
+  화면을                                                                        
+    [id]/loading.tsx 와 [id]/not-found.tsx 로 옮겨줘.                           
+  - params.id 가 정수가 아니거나 조회 결과가 null 이면 notFound() 호출하도록    
+  해줘                                                                          
+  ⎿  Read src/app/reservations/[id]/page.tsx (unchanged)
+  ⎿  Read src/lib/service/reservation.ts (29 lines)
+
+  Read 2 files (ctrl+o to expand)
+
+⏺ 이제 서버 컴포넌트로 전환. 먼저 클라이언트 조각 2개:
+
+⏺ Write(src/app/reservations/[id]/_components/BackButtonClient.tsx)  ⎿  Wrote 30 lines to
+     src/app/reservations/[id]/_components/BackButtonClient.tsx
+       1 "use client";
+       2 
+       3 import type { ReactNode } from "react";
+       4 import { useRouter } from "next/navigation";
+       5 
+         sName/children 으로 정한다. */
+       7 function BackButtonClient({
+       8   className,
+       9   ariaLabel,
+      10   children,
+     … +21 lines (ctrl+o to expand)
+
+⏺ Write(src/app/reservations/[id]/_components/DecisionBarClient.tsx)
+  ⎿  Wrote 61 lines to
+     src/app/reservations/[id]/_components/DecisionBarClient.tsx
+       1 "use client";
+       2 
+       3 import { useState } from "react";
+       4 import { useRouter } from "next/navigation";
+       5 import { writeDecision } from "@/lib/reservations";
+       7 
+       8 /** 예약 확정/불가 결정 바. 결정은 로컬 스토리지에 저장하고 목록
+         으로 돌아간다. */
+       9 function DecisionBarClient({ id }: { id: string }) {
+      10   const router = useRouter();
+     … +59 lines (ctrl+o to expand)
+
+⏺ Write(src/app/reservations/[id]/page.tsx)
+  ⎿  Added 14 lines, removed 94 lines
+       1 -"use client";                                                  
+       2 -                                                               
+       3 -import { useEffect, useState } from "react";                   
+       4 -import { useRouter } from "next/navigation";                   
+       5 -import { type ReservationDetail, toReservationDetail } from "@/
+         -lib/models";                                                   
+       6 -import { fetchReservation, writeDecision } from "@/lib/reservat
+         -ions";                                                         
+       1 +import { notFound } from "next/navigation";                    
+       2 +import { toReservationDetail } from "@/lib/models";            
+       3 +import { getReservationDetail } from "@/lib/service/reservation
+         +";                                                             
+       4  import { formatWon } from "@/lib/utils/format";
+       8 -import DecisionPopup from "./_components/DecisionPopupClient"; 
+       5 +import BackButton from "./_components/BackButtonClient";       
+       6 +import DecisionBar from "./_components/DecisionBarClient";     
+       7  import InfoRow from "./_components/InfoRow";
+       8  
+       9  function ReservationDetailPage({ params }: { params: { id: stri
+          ng } }) {
+      12 -  const router = useRouter();                                  
+      13 -  const { id } = params;                                       
+      14 -  const [popup, setPopup] = useState<"confirm" | "reject" | nul
+         -l>(null);                                                      
+      10 +  const serverId = Number(params.id);                          
+      11 +  if (!Number.isInteger(serverId)) notFound();                 
+      12  
+      16 -  const [data, setData] = useState<ReservationDetail | null>(nu
+         -ll);                                                           
+      17 -  const [isLoading, setIsLoading] = useState(true);            
+      18 -  const [isError, setIsError] = useState(false);               
+      13 +  const detail = getReservationDetail(serverId);               
+      14 +  if (!detail) notFound();                                     
+      15  
+      20 -  useEffect(() => {                                            
+      21 -    setIsLoading(true);                                        
+      22 -    setIsError(false);                                         
+      23 -    fetchReservation(id)                                       
+      24 -      .then((detail) => setData(toReservationDetail(detail)))  
+      25 -      .catch(() => setIsError(true))                           
+      26 -      .finally(() => setIsLoading(false));                     
+      27 -  }, [id]);                                                    
+      28 -                                                               
+      29 -  function submitDecision() {                                  
+      30 -    if (!popup) return;                                        
+      31 -    writeDecision(id, popup === "confirm" ? "confirmed" : "reje
+         -cted");                                                        
+      32 -    setPopup(null);                                            
+      33 -    router.back();                                             
+      34 -  }                                                            
+      35 -                                                               
+      36 -  if (isLoading) {                                             
+      37 -    return (                                                   
+      38 -      <main className="device-frame flex items-center justify-c
+         -enter bg-white">                                               
+      39 -        <p className="text-t2 font-medium text-gray500">불러오 
+         -는 중…</p>                                                     
+      40 -      </main>                                                  
+      41 -    );                                                         
+      42 -  }                                                            
+      43 -                                                               
+      44 -  if (isError || !data) {                                      
+      45 -    return (                                                   
+      46 -      <main className="device-frame flex flex-col items-center 
+         -justify-center gap-3 bg-white">                                
+      47 -        <p className="text-t2 font-medium text-gray600">       
+      48 -          예약 정보를 찾을 수 없어요.                          
+      49 -        </p>                                                   
+      50 -        <button                                                
+      51 -          type="button"                                        
+      52 -          onClick={() => router.back()}                        
+      53 -          className="rounded-[10px] bg-gray100 px-4 py-2 text-t
+         -2 font-medium text-gray700"                                    
+      54 -        >                                                      
+      55 -          돌아가기                                             
+      56 -        </button>                                              
+      57 -      </main>                                                  
+      58 -    );                                                         
+      59 -  }                                                            
+      60 -                                                               
+      16 +  const data = toReservationDetail(detail);                    
+      17    const { productTitle, productName, additionalItems } = data;
+      18    const carParts = [data.car.brand, data.car.model, data.car.fu
+          elLabel].filter(
+      19      Boolean,
+     ...
+      30          aria-hidden
+      31        />
+      32        <div className="flex h-14 items-center px-1">
+      77 -        <button                                                
+      78 -          type="button"                                        
+      79 -          aria-label="뒤로가기"                                
+      80 -          onClick={() => router.back()}                        
+      33 +        <BackButton                                            
+      34 +          ariaLabel="뒤로가기"                                 
+      35            className="flex h-12 w-12 items-center justify-center
+          "
+      36          >
+      37            <img
+     ...
+      41              height={48}
+      42              aria-hidden
+      43            />
+      90 -        </button>                                              
+      44 +        </BackButton>                                          
+      45          <span className="text-t1 font-medium text-gray900">예약
+           요청 확인</span>
+      46        </div>
+      47  
+     ...
+      168          </div>
+      169        </div>
+      170  
+      217 -      <div className="sticky bottom-0 flex gap-2 border-t bord
+          -er-line-subtle bg-white px-4 py-3">                           
+      218 -        <button                                               
+      219 -          type="button"                                       
+      220 -          onClick={() => setPopup("reject")}                  
+      221 -          className="flex h-12 flex-1 items-center justify-cen
+          -ter rounded-[10px] bg-gray100 text-t1 font-medium text-gray700
+          -"                                                             
+      222 -        >                                                     
+      223 -          예약 불가                                           
+      224 -        </button>                                             
+      225 -        <button                                               
+      226 -          type="button"                                       
+      227 -          onClick={() => setPopup("confirm")}                 
+      228 -          className="flex h-12 flex-1 items-center justify-cen
+          -ter rounded-[10px] bg-primary text-t1 font-medium text-white" 
+      229 -        >                                                     
+      230 -          예약 확정                                           
+      231 -        </button>                                             
+      232 -      </div>                                                  
+      233 -                                                              
+      234 -      {popup === "reject" && (                                
+      235 -        <DecisionPopup                                        
+      236 -          title="작업이 어려우신가요?"                        
+      237 -          description="고객의 신뢰 유지를 위해 예약이 불가능한
+          - 시간은 미리 표시해주세요."                                   
+      238 -          confirmLabel="예약 불가능"                          
+      239 -          onCancel={() => setPopup(null)}                     
+      240 -          onConfirm={submitDecision}                          
+      241 -        />                                                    
+      242 -      )}                                                      
+      243 -      {popup === "confirm" && (                               
+      244 -        <DecisionPopup                                        
+      245 -          title="예약을 확정할까요?"                          
+      246 -          description="확정 후에는 고객에게 예약 완료 안내가  
+          -전송됩니다."                                                  
+      247 -          confirmLabel="확정하기"                             
+      248 -          onCancel={() => setPopup(null)}                     
+      249 -          onConfirm={submitDecision}                          
+      250 -        />                                                    
+      251 -      )}                                                      
+      171 +      <DecisionBar id={data.id} />                            
+      172      </main>
+      173    );
+      174  }
+
+⏺ Write(src/app/reservations/[id]/loading.tsx)
+  ⎿  Wrote 10 lines to src/app/reservations/[id]/loading.tsx
+       1 /** 서버 컴포넌트가 예약 상세를 읽는 동안 보여주는 화면. (기존 i
+         sLoading 분기) */
+       3   return (
+       4     <main className="device-frame flex items-center justify-cent
+         er bg-white">
+         중…</p>
+       6     </main>
+       7   );
+       9 
+      10 export default Loading;
+     … +3 lines (ctrl+o to expand)
+
+⏺ Write(src/app/reservations/[id]/not-found.tsx)
+  ⎿  Wrote 17 lines to src/app/reservations/[id]/not-found.tsx
+       1 import BackButton from "./_components/BackButtonClient";
+       2 
+         isError 분기) */
+       4 function NotFound() {
+       5   return (
+         tify-center gap-3 bg-white">
+       7       <p className="text-t2 font-medium text-gray600">
+       8         예약 정보를 찾을 수 없어요.
+      10       <BackButton className="rounded-[10px] bg-gray100 px-4 py-2
+          text-t2 font-medium text-gray700">
+     … +10 lines (ctrl+o to expand)
+
+⏺ fetchReservation 제거 + Route Handler 삭제:
+
+⏺ Update(src/lib/reservations.ts)
+  ⎿  Removed 8 lines
+      71  
+      72    return { items, hasNext: body.hasNext, totalPages: body.total
+          Pages };
+      73  }
+      74 -                                                               
+      75 -export async function fetchReservation(                        
+      76 -  id: string,                                                  
+      77 -): Promise<ApiReservationDetail> {                             
+      78 -  const res = await fetch(apiUrl(`/reservations/${id}`));      
+      79 -  if (!res.ok) throw new Error("예약 정보를 불러오지 못했습니다
+         -.");                                                           
+      80 -  return res.json();                                           
+      81 -}                                                              
+
+⏺ Update(src/lib/reservations.ts)
+  ⎿  Removed 1 line
+      1  import {
+      2    type ApiCustomer,
+      3 -  type ApiReservationDetail,                                    
+      3    type ApiReservationListPage,
+      4    type DecisionStatus,
+      5    type Reservation,
+
+  Ran 2 shell commands (ctrl+o to expand)
+
+⏺ 타입체크 클린 (앞선 에러는 삭제 전 빌드가 남긴 .next/types 잔재였고, 재빌드 후
+  사라짐). 실제 동작 확인:
+
+  Read 1 file, ran 4 shell commands (ctrl+o to expand)
+
+⏺ .next가 dev 서버와 섞여 깨졌어. 클린 빌드 후 재확인:
+
+  Listed 1 directory, ran 4 shell commands (ctrl+o to expand)
+
+⏺ [id]/page.tsx 서버 컴포넌트 전환 완료. 빌드·타입체크·린트 통과, 프로덕션
+  서버로 실제 응답까지 확인했어.
+
+  변경 내용
+
+  [id]/page.tsx — "use client" 제거, 서버 컴포넌트.
+  getReservationDetail(serverId)를 함수로 직접 호출하고 toReservationDetail로
+  화면 모델을 만들어. useState/useEffect/isLoading/isError 전부 사라졌어.
+
+  const serverId = Number(params.id);
+  if (!Number.isInteger(serverId)) notFound();
+
+  const detail = getReservationDetail(serverId);
+  if (!detail) notFound();
+
+  분리한 클라이언트 조각
+  - _components/DecisionBarClient.tsx — sticky 하단 바 + popup 상태 +
+  writeDecision + router.back()
+  - _components/BackButtonClient.tsx — router.back()만 담당.
+  className/children을 받아서 헤더 아이콘 버튼과 not-found의 "돌아가기" 텍스트
+  버튼 양쪽에서 재사용
+
+  [id]/loading.tsx / [id]/not-found.tsx — 기존 isLoading / isError 화면을 그대로
+  옮김.
+
+  삭제 — src/app/api/reservations/[id]/ (프로덕션에서 404 확인),
+  lib/reservations.ts의 fetchReservation.
+
+  검증 결과
+
+  ┌───────────────────────────────────┬──────┬──────────────────────────────┐
+  │               경로                │ 상태 │             비고             │
+  ├───────────────────────────────────┼──────┼──────────────────────────────┤
+  │ /reservations/2067500001          │ 200  │ 초기 HTML에 총 결제금액,     │
+  │                                   │      │ 158,000원 포함 → 서버 렌더   │
+  ├───────────────────────────────────┼──────┼──────────────────────────────┤
+  │ /reservations/abc, 12.5, -1,      │ 200  │ not-found 화면 + noindex     │
+  │ 999999999999                      │      │ 메타                         │
+  ├───────────────────────────────────┼──────┼──────────────────────────────┤
+  │ /api/reservations/2067500001      │ 404  │ 라우트 삭제됨                │
+  └───────────────────────────────────┴──────┴──────────────────────────────┘
+
+  클라이언트 번들 4.31 kB → 2.87 kB.
+
+  한 가지 알아둘 점: notFound()가 404를 안 내려
+
+  not-found.tsx 화면은 정상이고 noindex 메타도 붙지만, HTTP 상태가 200이야. 같은
+  서버에서 존재하지 않는 경로(/nope → 루트 not-found)는 404를 주니까, 내 코드
+  문제가 아니라 동적(ƒ) 라우트에서 스트리밍 중 notFound()가 던져질 때 Next 14가
+  상태 코드를 못 바꾸는 알려진 동작이야.
+
+  기존 클라이언트 버전도 HTML은 항상 200이었으니 회귀는 아니고 noindex가 붙은
+  만큼 나아진 쪽인데, 상태 코드까지 404가 필요하면 별도 처리가 필요해. 지금
+  단계에서 건드릴 범위는 아니라 판단해서 그대로 뒀어 — 필요하면 알려줘.
+
+  다음 단계
+
+  /reservations 목록 페이지가 남았어. 여기가 왕복이 제일 심해 — 서버 컴포넌트가
+  fetchReservationsPage로 자기 Route Handler를 호출하고, 그 안에서 10건마다
+  /api/customers/{id}를 건당 1회씩 또 호출해서 프리페치 1회에 HTTP 11회가 나가.
+  lib/api/ 생성과 함께 정리하면 그게 0회가 돼.
+
+✻ Baked for 6m 25s
+
+※ recap: reservations.ts 분리 리팩터링 중이고, 지금까지 utils/format, models, service를 만들고 상세 페이지를 서버 컴포넌트로 전환했어. 다음은 목록 페이지에서 HTTP 왕복(프리페치 1회당 11회)을 없애는 작업이야.
+
+❯ 다음은 예약 목록의 서버 prefetch 가 lib/service 를 직접 호출하도록 바꿔줘     
+                                                                                
+  - lib/service/reservation.ts 에 getReservations 만들어줘. 목록 조회 +         
+  getCustomer + toReservation 조립까지 해서 { items, hasNext, totalPages }      
+  반환하고 기존 getReservationsPage 는 흡수하고 PER_PAGE 도 여기로 옮겨줘       
+  - 위 작업 하면서 getReservationDetail 도 toReservationDetail 까지해서         
+  반환하도록 작업해줘                                                           
+  - reservations/page.tsx 의 prefetch 는 getReservations 를 직접 호출하도록     
+  해줘                                                                          
+  - 클라이언트용으로 lib/api/client.ts (API_BASE, apiUrl),                      
+  lib/api/reservation.ts (fetchReservations), lib/storage/decision.ts           
+  (readDecisions, writeDecision) 만들고 lib/reservations.ts 는 삭제해줘         
+  - decisions 병합은 fetchReservations 에서 빼고 ReservationListClient 에서     
+  해줘 로컬 스토리지에 저장하기 때문에 클라이언트에서 병합해야 해.              
+  readDecisions 는 렌더 중에 호출하지 말고 useEffect 에서 state 로 담고, 취소된 
+  예약 필터(hideCanceled)는 병합된 status 기준으로 적용해줘                     
+
+  Read 2 files, ran 1 shell command (ctrl+o to expand)
+
+⏺ 전체 그림을 파악했어. 서비스 레이어부터:
+
+⏺ Write(src/lib/service/reservation.ts)
+  ⎿  Added 30 lines, removed 15 lines
+       1  import "server-only";
+       2 -import type { ApiReservationDetail, ApiReservationListPage } fr
+         -om "@/lib/models";                                             
+       2 +                                                               
+       3 +import {                                                       
+       4 +  type ReservationDetail,                                      
+       5 +  type ReservationsPage,                                       
+       6 +  toReservation,                                               
+       7 +  toReservationDetail,                                         
+       8 +} from "@/lib/models";                                         
+       9 +import { getCustomer } from "@/lib/service/customer";          
+      10  import * as mock from "@/lib/service/mock";
+      11  
+      12 +export const PER_PAGE = 10;                                    
+      13 +                                                               
+      14  /**
+       6 - * 예약 데이터에 접근하는 서비스 레이어.                       
+       7 - * Route Handler 와 서버 컴포넌트가 공통으로 사용한다. (서버 컴
+         -포넌트가 자기 자신의                                           
+       8 - * Route Handler를 HTTP로 다시 호출하지 않도록, 데이터 소스를  
+         -함수 호출로 직접 읽는다.)                                      
+       9 - *                                                             
+      10 - * 지금은 데이터 소스가 목(mock)이라 그대로 위임하지만, 실제 서
+         -버로 바뀌어도                                                  
+      11 - * 호출부는 이 시그니처만 알면 된다.                           
+      15 + * 예약 목록 한 페이지를 화면 모델로 조립해 돌려준다. page 는 0
+         +부터 시작한다.                                                 
+      16 + * 고객 정보가 없는 예약은 목록에서 제외한다.                  
+      17   */
+      13 -                                                               
+      14 -/** 예약 목록 (날짜 + 페이지). page 는 0부터 시작한다. */      
+      15 -export function getReservationsPage(                           
+      18 +export function getReservations(                               
+      19    date: string | null,
+      20    page: number,
+      21    perPage: number,
+      19 -): ApiReservationListPage {                                    
+      20 -  return mock.getReservationsPage(date, page, perPage);        
+      22 +): ReservationsPage {                                          
+      23 +  const { data, totalPages, hasNext } = mock.getReservationsPag
+         +e(                                                             
+      24 +    date,                                                      
+      25 +    page,                                                      
+      26 +    perPage,                                                   
+      27 +  );                                                           
+      28 +                                                               
+      29 +  const items = data.flatMap((item) => {                       
+      30 +    const customer = getCustomer(item.customerId);             
+      31 +    return customer ? [toReservation(item, customer)] : [];    
+      32 +  });                                                          
+      33 +                                                               
+      34 +  return { items, hasNext, totalPages };                       
+      35  }
+      36  
+      23 -/** 예약 상세. 없으면 null */                                  
+      37 +/** 예약 상세 화면 모델. 없으면 null */                        
+      38  export function getReservationDetail(
+      39    serverId: number,
+      26 -): ApiReservationDetail | null {                               
+      27 -  return mock.getReservationDetail(serverId);                  
+      40 +): ReservationDetail | null {                                  
+      41 +  const detail = mock.getReservationDetail(serverId);          
+      42 +  return detail ? toReservationDetail(detail) : null;          
+      43  }
+
+⏺ Update(src/lib/models/reservation.ts)  ⎿  Error editing file
+
+  Read 1 file, ran 1 shell command (ctrl+o to expand)
+
+⏺ Update(src/lib/models/reservation.ts)
+  ⎿  Added 6 lines
+      18    status: UiStatus;
+      19  }
+      20  
+      21 +export interface ReservationsPage {                            
+      22 +  items: Reservation[];                                        
+      23 +  hasNext: boolean;                                            
+      24 +  totalPages: number;                                          
+      25 +}                                                              
+      26 +                                                               
+      27  export interface ReservationDetail {
+      28    id: string;
+      29    status: UiStatus;
+
+⏺ Now lib/api/, lib/storage/, 그리고 lib/reservations.ts 삭제:
+
+⏺ Write(src/lib/api/client.ts)
+  ⎿  Wrote 10 lines to src/lib/api/client.ts
+       1 export const API_BASE = "/api";
+       2 
+       3 /**
+       4  * 클라이언트 컴포넌트에서 Route Handler를 호출할 때 쓰는 경로.
+       5  * 브라우저에서만 실행되므로 상대경로로 충분하다.
+       6  * (서버는 /api 를 거치지 않고 lib/service 를 직접 호출한다.)
+       7  */
+       8 export function apiUrl(path: string): string {
+       9   return `${API_BASE}${path}`;
+      10 }
+
+⏺ Write(src/lib/api/reservation.ts)
+  ⎿  Wrote 15 lines to src/lib/api/reservation.ts
+       1 import { apiUrl } from "@/lib/api/client";
+       2 import type { ReservationsPage } from "@/lib/models";
+       3 
+       4 /** 예약 목록 한 페이지. 확정/불가 결정 병합은 호출하는 화면에서
+          한다. */
+       6   date: string,
+       7   page: number,
+       8   perPage: number,
+       9 ): Promise<ReservationsPage> {
+      10   const res = await fetch(
+     … +7 lines (ctrl+o to expand)
+
+⏺ Write(src/lib/storage/decision.ts)
+  ⎿  Wrote 19 lines to src/lib/storage/decision.ts
+       1 import type { DecisionStatus, UiStatus } from "@/lib/models";
+       2 
+       3 const STORAGE_KEY = "reservation-decisions";
+       5 /** 로컬에 저장된 예약별 확정/불가 결정. 서버에서는 항상 빈 객체
+         다. */
+       6 export function readDecisions(): Record<string, UiStatus> {
+       7   if (typeof window === "undefined") return {};
+       9     return JSON.parse(window.localStorage.getItem(STORAGE_KEY) |
+         | "{}");
+      10   } catch {
+     … +12 lines (ctrl+o to expand)
+
+  Ran 1 shell command (ctrl+o to expand)
+
+⏺ Route Handler, 서버 컴포넌트, 상세 페이지, 클라이언트 컴포넌트 갱신:
+
+⏺ Update(src/app/api/reservations/route.ts)
+  ⎿  Added 2 lines, removed 2 lines
+      1  import { type NextRequest, NextResponse } from "next/server";
+      2 -import { getReservationsPage } from "@/lib/service/reservation";
+      2 +import { getReservations } from "@/lib/service/reservation";    
+      3  
+      4  /** GET /api/reservations?date={YYYY-MM-DD}&page={1}&per_page={2
+         0} */
+      5  export function GET(request: NextRequest) {
+     ...
+       8    const page = Number(params.get("page"));
+       9    const perPage = Number(params.get("per_page"));
+      10  
+      11 -  return NextResponse.json(getReservationsPage(date, page, perP
+         -age));                                                         
+      11 +  return NextResponse.json(getReservations(date, page, perPage)
+         +);                                                             
+      12  }
+
+⏺ Update(src/app/reservations/page.tsx)
+  ⎿  Added 1 line, removed 1 line
+       5  } from "@tanstack/react-query";
+       6  import { redirect } from "next/navigation";
+       7  import moment from "moment";
+       8 -import { PER_PAGE, fetchReservationsPage } from "@/lib/reservat
+         -ions";                                                         
+       8 +import { PER_PAGE, getReservations } from "@/lib/service/reserv
+         +ation";                                                        
+       9  import ReservationList from "./_components/ReservationListClien
+          t";
+      10  
+      11  export const dynamic = "force-dynamic";
+
+⏺ Update(src/app/reservations/page.tsx)
+  ⎿  Added 2 lines, removed 1 line
+      27    const queryClient = new QueryClient();
+      28    await queryClient.prefetchInfiniteQuery({
+      29      queryKey: ["reservations", date],
+      30 +    // Route Handler를 HTTP로 다시 부르지 않고 데이터 소스를 직
+         +접 읽는다.                                                     
+      31      queryFn: ({ pageParam }) =>
+      31 -      fetchReservationsPage(date, pageParam as number, Number(p
+         -er_page)),                                                     
+      32 +      getReservations(date, pageParam as number, Number(per_pag
+         +e)),                                                           
+      33      initialPageParam: Number(page),
+      34    });
+      35  
+
+⏺ Update(src/app/reservations/[id]/_components/DecisionBarClient.tsx)
+  ⎿  Added 1 line, removed 1 line
+      2  
+      3  import { useState } from "react";
+      4  import { useRouter } from "next/navigation";
+      5 -import { writeDecision } from "@/lib/reservations";             
+      5 +import { writeDecision } from "@/lib/storage/decision";         
+      6  import DecisionPopup from "./DecisionPopupClient";
+      7  
+      8  function DecisionBarClient({ id }: { id: string }) {
+
+⏺ Update(src/app/reservations/[id]/page.tsx)
+  ⎿  Removed 1 line
+      1  import { notFound } from "next/navigation";
+      2 -import { toReservationDetail } from "@/lib/models";             
+      2  import { getReservationDetail } from "@/lib/service/reservation"
+         ;
+      3  import { formatWon } from "@/lib/utils/format";
+      4  import BackButton from "./_components/BackButtonClient";
+
+⏺ Update(src/app/reservations/[id]/page.tsx)
+  ⎿  Added 2 lines, removed 3 lines
+       9    const serverId = Number(params.id);
+      10    if (!Number.isInteger(serverId)) notFound();
+      11  
+      12 -  const detail = getReservationDetail(serverId);               
+      13 -  if (!detail) notFound();                                     
+      12 +  const data = getReservationDetail(serverId);                 
+      13 +  if (!data) notFound();                                       
+      14  
+      15 -  const data = toReservationDetail(detail);                    
+      15    const { productTitle, productName, additionalItems } = data;
+      16    const carParts = [data.car.brand, data.car.model, data.car.fu
+          elLabel].filter(
+      17      Boolean,
+
+⏺ 이제 ReservationListClient — decisions 병합을 여기로:
+
+⏺ Update(src/app/reservations/_components/ReservationListClient.tsx)
+  ⎿  Added 3 lines, removed 2 lines
+       3  import { useEffect, useMemo, useRef, useState } from "react";
+       4  import { useRouter, useSearchParams } from "next/navigation";
+       5  import { useInfiniteQuery } from "@tanstack/react-query";
+       6 -import type { Reservation } from "@/lib/models";               
+       7 -import { fetchReservationsPage } from "@/lib/reservations";    
+       6 +import { fetchReservations } from "@/lib/api/reservation";     
+       7 +import type { Reservation, UiStatus } from "@/lib/models";     
+       8 +import { readDecisions } from "@/lib/storage/decision";        
+       9  import { addDays, formatDateHeader } from "@/lib/utils/format";
+      10  import ReservationCard from "./ReservationCardClient";
+      11  
+
+⏺ Update(src/app/reservations/_components/ReservationListClient.tsx)
+  ⎿  Added 7 lines
+      29    const [scrollY, setScrollY] = useState(0);
+      30    const sentinelRef = useRef<HTMLDivElement | null>(null);
+      31  
+      32 +  // 확정/불가 결정은 로컬 스토리지에만 있으므로 서버 응답에 클
+         +라이언트에서 덮어쓴다.                                         
+      33 +  // (렌더 중에 읽으면 서버/클라이언트 결과가 달라지므로 effect
+         + 에서 읽는다.)                                                 
+      34 +  const [decisions, setDecisions] = useState<Record<string, UiS
+         +tatus>>({});                                                   
+      35 +  useEffect(() => {                                            
+      36 +    setDecisions(readDecisions());                             
+      37 +  }, []);                                                      
+      38 +                                                               
+      39    const {
+      40      data,
+      41      isLoading,
+
+⏺ Update(src/app/reservations/_components/ReservationListClient.tsx)
+  ⎿  Added 1 line, removed 1 line
+      47    } = useInfiniteQuery({
+      48      queryKey: ["reservations", selectedDate],
+      49      queryFn: ({ pageParam }) =>
+      50 -      fetchReservationsPage(selectedDate, pageParam, perPage), 
+      50 +      fetchReservations(selectedDate, pageParam, perPage),     
+      51      initialPageParam: initialPage,
+      52      getNextPageParam: () => undefined,
+      53    });
+
+⏺ Update(src/app/reservations/_components/ReservationListClient.tsx)
+  ⎿  Added 7 lines, removed 2 lines
+      53    });
+      54  
+      55    const items = useMemo(() => {
+      56 -    const all = data?.pages.flatMap((page) => page.items) ?? []
+         -;                                                              
+      56 +    const all = (data?.pages.flatMap((page) => page.items) ?? [
+         +]).map(                                                        
+      57 +      (item) => {                                              
+      58 +        const decided = decisions[item.id];                    
+      59 +        return decided ? { ...item, status: decided } : item;  
+      60 +      },                                                       
+      61 +    );                                                         
+      62      return hideCanceled
+      63        ? all.filter((item) => item.status !== "canceled")
+      64        : all;
+      60 -  }, [data, hideCanceled]);                                    
+      65 +  }, [data, decisions, hideCanceled]);                         
+      66  
+      67    // 시간대별 그룹은 상태로 들고 effect 로 동기화한다.
+      68    const [groups, setGroups] = useState(() => groupByTime(items)
+          );
+
+  Ran 4 shell commands (ctrl+o to expand)
+⏺ 완료. 빌드·타입체크·린트 통과, 프로덕션 서버로 응답까지 확인했어.
+
+  서버 왕복 제거
+
+  reservations/page.tsx의 prefetch가 getReservations를 함수로 직접 호출해.
+  프리페치 1회당 HTTP 11회 → 0회 (목록 1회 + 고객 10회가 모두 사라짐).
+
+  apiUrl이 이제 상대경로만 만들기 때문에, 만약 서버에서 fetch 경로가 남아
+  있었다면 Node fetch가 URL 파싱 에러를 냈을 거야. SSR HTML에 예약 시간(오전 
+  9:00)이 정상으로 들어있는 걸 확인했으니 서비스 직접 호출로 데이터가 채워진 게
+  증명돼.
+
+  파일 구조
+
+  lib/api/client.ts       API_BASE, apiUrl (상대경로 전용)
+  lib/api/reservation.ts  fetchReservations
+  lib/service/reservation.ts  PER_PAGE, getReservations, getReservationDetail
+  lib/storage/decision.ts     readDecisions, writeDecision
+  lib/models/, lib/utils/     (기존)
+
+  lib/reservations.ts 삭제. lib/models에 ReservationsPage { items, hasNext, 
+  totalPages }를 추가해서 service 반환 타입과 client 파싱 타입이 같은 정의를
+  공유해.
+
+  - getReservations — 목록 조회 + getCustomer + toReservation 조립까지. 기존
+  getReservationsPage 흡수.
+  - getReservationDetail — toReservationDetail까지 적용해서 ReservationDetail을
+  반환. 상세 페이지는 const data = getReservationDetail(id) 한 줄이 됐어.
+  - /api/reservations Route Handler는 getReservations 결과를 그대로 감싸기만 해.
+  응답이 이미 화면 모델이라 클라이언트의 고객 N+1 fetch도 같이 사라졌어.
+  - writeDecision은 readDecisions를 재사용하도록 정리 (파싱 try/catch를 공유).
+
+  decisions 병합
+
+  ReservationListClient에서 useEffect로 state에 담고, items useMemo에서 병합 →
+  그 다음 hideCanceled 필터. 병합을 필터보다 먼저 하므로 필터도, groupByTime의
+  "취소 건 뒤로 정렬"도 모두 병합된 status 기준으로 동작해.
+
+  발견한 기존 버그 (이번에 해결됨)
+
+  목 데이터는 예약의 약 1%에 존재하지 않는 customerId를 일부러 넣어 (mock.ts의
+  CUSTOMER_COUNT + randInt(1,8)). 실제로 재현됨:
+
+  drop: 2026-08-11 page=1 items=9   (hasNext=true인데 9건)
+
+  기존 fetchReservationsPage는 /api/customers/{id} 404 응답의 res.ok를 검사하지
+  않고 {message} 본문을 고객으로 파싱한 뒤 customer.vehicle.model에 접근했어 →
+  TypeError → Promise.all reject → 페이지 전체가 "예약 목록을 불러오지 
+  못했어요". 10건 중 1건만 걸려도 그날 목록이 통째로 안 보였다는 뜻이야.
+
+  getReservations에서 flatMap으로 해당 예약만 제외하도록 했어. 다만 정비소
+  입장에서 예약이 조용히 사라지는 것도 이상적이진 않아서, 고객 정보를
+  placeholder로 채워 카드는 보여주는 쪽이 더 낫다면 toReservation이 nullable
+  customer를 받도록 바꾸면 돼. 이번 범위 밖이라 판단해서 제외 방식으로 뒀어.
+
+  남은 것 2가지
+
+  1. hideCanceled가 여전히 렌더 중에 localStorage를 읽어 (useState 초기화 함수).
+  decisions에서 피하라고 한 것과 정확히 같은 패턴 — 저장값이 "false"면
+  하이드레이션 불일치가 나. 지시 범위 밖이라 안 건드렸는데, 같이 effect로 옮길지
+  알려줘.
+  2. 브라우저 검증은 못 했어. 확정/불가 → 뒤로가기 → 배지 반영 흐름은
+  localStorage가 필요해서 curl로는 확인이 안 돼. 타입·빌드는 통과했고 병합
+  로직은 리뷰했지만, 실제 클릭 확인은 안 된 상태야.
+
+✻ Churned for 4m 46s
+
+※ recap: Goal: split src/lib/reservations.ts into api/service/models/utils and stop the server calling its own Route Handler. That's done and verified; reservations.ts is deleted. Next: decide whether to move hideCanceled's localStorage read out of render into a useEffect.
+
+❯ 1번도 작업해줘                                                                
+
+⏺ hideCanceled도 같은 패턴으로 정리할게. localStorage 접근은 lib/storage/에 두는
+  게 지금 구조와 일관되니까 파일 하나 추가:
+
+⏺ Write(src/lib/storage/preference.ts)
+  ⎿  Wrote 11 lines to src/lib/storage/preference.ts
+       1 const HIDE_CANCELED_KEY = "hideCanceled";
+       2 
+       3 /** 취소된 예약 숨기기 설정. 저장된 값이 없으면 숨김이 기본이다.
+       4 export function readHideCanceled(): boolean {
+       5   if (typeof window === "undefined") return true;
+       6   return window.localStorage.getItem(HIDE_CANCELED_KEY) !== "fal
+         se";
+       8 
+       9 export function writeHideCanceled(hide: boolean): void {
+      10   window.localStorage.setItem(HIDE_CANCELED_KEY, String(hide));
+     … +1 line (ctrl+o to expand)
+
+⏺ Update(src/app/reservations/_components/ReservationListClient.tsx)
+  ⎿  Added 1 line
+       6  import { fetchReservations } from "@/lib/api/reservation";
+       7  import type { Reservation, UiStatus } from "@/lib/models";
+       8  import { readDecisions } from "@/lib/storage/decision";
+       9 +import { readHideCanceled, writeHideCanceled } from "@/lib/stor
+         +age/preference";                                               
+      10  import { addDays, formatDateHeader } from "@/lib/utils/format";
+      11  import ReservationCard from "./ReservationCardClient";
+      12  
+
+⏺ Update(src/app/reservations/_components/ReservationListClient.tsx)
+  ⎿  Added 10 lines, removed 6 lines
+      23      );
+      24    }
+      25  
+      26 -  const [hideCanceled, setHideCanceled] = useState<boolean>(() 
+         -=> {                                                           
+      27 -    if (typeof window === "undefined") return true;            
+      28 -    return window.localStorage.getItem("hideCanceled") !== "fal
+         -se";                                                           
+      29 -  });                                                          
+      26    const [scrollY, setScrollY] = useState(0);
+      27    const sentinelRef = useRef<HTMLDivElement | null>(null);
+      28  
+      33 -  // 확정/불가 결정은 로컬 스토리지에만 있으므로 서버 응답에 클
+         -라이언트에서 덮어쓴다.                                         
+      34 -  // (렌더 중에 읽으면 서버/클라이언트 결과가 달라지므로 effect
+         - 에서 읽는다.                                                  
+      29 +  // 로컬 스토리지에만 있는 값들. 렌더 중에 읽으면 서버/클라이 
+         +언트 결과가 달라지므로                                         
+      30 +  // 서버와 같은 기본값으로 시작한 뒤 마운트 후에 읽어서 덮어쓴
+         +다.                                                            
+      31 +  const [hideCanceled, setHideCanceled] = useState(true);      
+      32    const [decisions, setDecisions] = useState<Record<string, UiS
+          tatus>>({});
+      33    useEffect(() => {
+      34 +    setHideCanceled(readHideCanceled());                       
+      35      setDecisions(readDecisions());
+      36    }, []);
+      37  
+      38 +  function toggleHideCanceled() {                              
+      39 +    const next = !hideCanceled;                                
+      40 +    setHideCanceled(next);                                     
+      41 +    writeHideCanceled(next);                                   
+      42 +  }                                                            
+      43 +                                                               
+      44    const {
+      45      data,
+      46      isLoading,
+
+⏺ Update(src/app/reservations/_components/ReservationListClient.tsx)
+  ⎿  Removed 4 lines
+      76    }, [items]);
+      77  
+      78    useEffect(() => {
+      79 -    window.localStorage.setItem("hideCanceled", String(hideCanc
+         -eled));                                                        
+      80 -  }, [hideCanceled]);                                          
+      81 -                                                               
+      82 -  useEffect(() => {                                            
+      79      function onScroll() {
+      80        setScrollY(window.scrollY);
+      81      }
+
+⏺ Update(src/app/reservations/_components/ReservationListClient.tsx)
+  ⎿  Added 1 line, removed 1 line
+      161                role="switch"
+      162                aria-checked={hideCanceled}
+      163                aria-label="취소된 예약 안보기"
+      164 -              onClick={() => setHideCanceled((prev) => !prev)}
+      164 +              onClick={toggleHideCanceled}                    
+      165                className={`flex h-7 w-12 shrink-0 items-center 
+           rounded-[14px] p-0.5 transition-colors ${
+      166                  hideCanceled
+      167                    ? "bg-primary justify-end"
+
+  Ran 2 shell commands (ctrl+o to expand)
+
+⏺ 완료. 빌드·타입체크·린트 통과, SSR HTML에서 토글 초기값이
+  aria-checked="true"(서버 기본값)로 나오는 것까지 확인했어.
+
+  변경 내용
+
+  lib/storage/preference.ts (신규) — readHideCanceled() /
+  writeHideCanceled(hide). 키 문자열 "hideCanceled"와 !== "false" 파싱 규칙이 한
+  곳에 모였어. 이제 src/app/ 전체에 localStorage 직접 접근이 하나도 남지
+  않았고(grep으로 확인), 스토리지 접근은 전부 lib/storage/를 거쳐.
+
+  ReservationListClient
+  - useState 초기화 함수의 렌더 중 읽기 제거 → useState(true)로 서버와 같은
+  기본값에서 시작
+  - decisions와 같은 mount effect에서 함께 읽어. 둘 다 "브라우저에만 있는 값을
+  마운트 후 덮어쓴다"는 같은 성질이라 한 effect로 묶었어
+  - 쓰기 effect를 제거하고 토글 핸들러에서 직접 저장 (toggleHideCanceled)
+
+  쓰기를 effect에서 핸들러로 옮긴 이유
+
+  읽기 effect와 기존 쓰기 effect([hideCanceled])를 같이 두면 마운트 시 순서
+  문제가 생겨. 읽기 effect가 setHideCanceled(false)를 예약해도 같은 effect
+  패스에서 쓰기 effect는 아직 true인 값을 보고 "true"를 저장해 — 저장된 사용자
+  설정을 한 번 덮어써. (다음 렌더에서 다시 "false"로 교정되긴 하지만 불필요한
+  왕복이야.)
+
+  쓰기를 사용자 액션 시점으로 옮기면 이 순서 문제가 아예 사라지고,
+  writeDecision을 핸들러에서 호출하는 기존 패턴과도 맞아. 부수 효과로 사용자가
+  토글을 건드리기 전까지는 localStorage에 아무것도 안 써 — 기본값이 어차피
+  숨김이라 동작 차이는 없어.
+
+  트레이드오프
+
+  하이드레이션 불일치는 사라졌지만, 설정이 false인 사용자는 첫 페인트에 취소
+  예약이 숨겨진 상태로 보이다가 effect 실행 후 나타나 (한 프레임 깜빡임).
+  decisions 배지도 같은 성질이야. 렌더 중 읽기(불일치 경고 + 잘못된 마크업
+  재조정)와 비교하면 이쪽이 정석이고, 깜빡임까지 없애려면 설정을 쿠키로 옮겨서
+  서버가 초기값을 알게 하는 방법이 있어 — 지금 범위 밖이라 두었어.
+
+  브라우저 클릭 검증은 여전히 못 했어 (localStorage가 필요해서 curl로는 안 돼).
+  토글 → 새로고침 → 설정 유지, 확정/불가 → 뒤로가기 → 배지 반영은 직접 확인이
+  필요해.
+
+✻ Brewed for 1m 49s
+
+※ recap: `src/lib/reservations.ts` 한 덩어리를 models/service/api/storage/utils로 쪼개고 서버 컴포넌트의 자기 Route Handler HTTP 왕복을 없애는 작업 — 요청한 5단계 모두 끝났고 빌드와 타입체크가 통과했습니다. 다음은 브라우저에서 토글 유지와 확정/불가 배지 반영을 직접 확인하는 것입니다.
+
+❯ 파일 이름 hideCancled 로 변경해줘                                             
+
+⏺ hideCanceled로 (철자 Canceled) 변경할게 — export 함수명 readHideCanceled와
+  스토리지 키가 모두 그 철자라서 맞췄어. 정말 hideCancled를 원하면 말해줘.
+
+  Ran 1 shell command (ctrl+o to expand)
+
+⏺ Update(src/app/reservations/_components/ReservationListClient.tsx)
+  ⎿  Added 4 lines, removed 1 line
+       6  import { fetchReservations } from "@/lib/api/reservation";
+       7  import type { Reservation, UiStatus } from "@/lib/models";
+       8  import { readDecisions } from "@/lib/storage/decision";
+       9 -import { readHideCanceled, writeHideCanceled } from "@/lib/stor
+         -age/preference";                                               
+       9 +import {                                                       
+      10 +  readHideCanceled,                                            
+      11 +  writeHideCanceled,                                           
+      12 +} from "@/lib/storage/hideCanceled";                           
+      13  import { addDays, formatDateHeader } from "@/lib/utils/format";
+      14  import ReservationCard from "./ReservationCardClient";
+      15  
+
+  Ran 1 shell command (ctrl+o to expand)
+
+⏺ src/lib/storage/preference.ts → src/lib/storage/hideCanceled.ts.
+  ReservationListClient의 import 경로도 갱신했고, 타입체크·린트·빌드 통과.
+
+  git mv로 옮겨서 rename으로 추적돼. 파일 내용(readHideCanceled,
+  writeHideCanceled, HIDE_CANCELED_KEY)은 그대로야.
+
+✻ Worked for 44s
+
+※ recap: `src/lib/reservations.ts`를 api/service/models/utils/storage로 분리하고 서버 컴포넌트의 자기 Route Handler HTTP 왕복을 없애는 리팩터링 중이야. 방금 `hideCanceled.ts` 파일명 변경까지 끝났고, 다음은 브라우저에서 토글 유지와 확정/불가 배지 반영을 직접 확인하는 거야.
