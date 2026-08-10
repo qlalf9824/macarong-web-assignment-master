@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import type { Reservation, UiStatus } from "@/lib/reservations";
+import type { Reservation, UiStatus } from "@/lib/models";
 
 const STATUS_BADGE: Partial<
   Record<UiStatus, { label: string; className: string }>

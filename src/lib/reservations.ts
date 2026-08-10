@@ -1,4 +1,12 @@
-import { toTime } from "@/lib/utils/format";
+import {
+  type ApiCustomer,
+  type ApiReservationDetail,
+  type ApiReservationListPage,
+  type DecisionStatus,
+  type Reservation,
+  type UiStatus,
+  toReservation,
+} from "@/lib/models";
 
 // BFF(Next.js Route Handler) 경유. 실제 데이터는 src/app/api/* 에서 목으로 제공한다.
 export const API_BASE = "/api";
@@ -14,83 +22,6 @@ function apiUrl(path: string): string {
       ? `https://${process.env.VERCEL_URL}`
       : `http://127.0.0.1:${process.env.PORT ?? 3000}`);
   return `${origin}${API_BASE}${path}`;
-}
-
-export const PAYMENT_LABEL: Record<string, string> = {
-  CARD: "카드결제",
-  BANK: "계좌이체",
-  VBANK: "무통장입금",
-  ONSITE: "현장결제",
-};
-
-export const FUEL_LABEL: Record<string, string> = {
-  PREMIUM_GASOLINE: "고급 휘발유",
-  GASOLINE: "일반 휘발유",
-  DIESEL: "경유",
-  LPG: "LPG",
-  ELECTRICITY: "전기",
-};
-
-export type UiStatus = "pending" | "confirmed" | "rejected" | "canceled";
-export type DecisionStatus = "confirmed" | "rejected";
-
-export interface ApiProduct {
-  group: string;
-  name: string;
-  price: number;
-  quantity: number;
-}
-
-export interface ApiListItem {
-  serverId: number;
-  customerId: number;
-  status: string;
-  reservedAt: string;
-  requirements: string;
-  products: ApiProduct[];
-  paymentMethod: string;
-}
-
-export interface ApiCustomer {
-  serverId: number;
-  name: string;
-  phone: string;
-  vehicle: { brand: string; model: string; number: string; fuelType: string };
-  visitCount: number;
-}
-
-export interface ApiDetail {
-  serverId: number;
-  status: string;
-  reservedAt: string;
-  requirements: string;
-  customer: { serverId: number; name: string; phone: string };
-  vehicle: { brand: string; model: string; number: string; fuelType: string };
-  products: ApiProduct[];
-  paymentMethod: string;
-}
-
-export interface Reservation {
-  id: string;
-  time: string;
-  productName: string;
-  additionalItems: string[];
-  car: { name: string; number: string };
-  customer: { name: string; phone: string; visitLabel: string };
-  requestMessage?: string;
-  status: UiStatus;
-}
-
-export function visitLabel(visitCount: number): string {
-  if (visitCount === 0) return "신규 고객";
-  return `${visitCount}회 방문`;
-}
-
-export function toStatus(apiStatus: string): UiStatus {
-  if (apiStatus === "CANCELLED" || apiStatus === "DEFERRED") return "canceled";
-  if (apiStatus === "CONFIRMED" || apiStatus === "COMPLETED")
-    return "confirmed";
-  return "pending";
 }
 
 export function readDecisions(): Record<string, UiStatus> {
@@ -121,8 +52,7 @@ export async function fetchReservationsPage(
     apiUrl(`/reservations?date=${date}&page=${page}&per_page=${perPage}`),
   );
   if (!res.ok) throw new Error("예약 목록을 불러오지 못했습니다.");
-  const body: { data: ApiListItem[]; totalPages: number; hasNext: boolean } =
-    await res.json();
+  const body: ApiReservationListPage = await res.json();
 
   const decisions = readDecisions();
 
@@ -130,20 +60,11 @@ export async function fetchReservationsPage(
     body.data.map(async (item) => {
       const customerRes = await fetch(apiUrl(`/customers/${item.customerId}`));
       const customer: ApiCustomer = await customerRes.json();
-      const id = String(item.serverId);
+      const reservation = toReservation(item, customer);
+      // 로컬에 저장한 확정/불가 결정이 있으면 서버 상태보다 우선한다.
       return {
-        id,
-        time: toTime(item.reservedAt),
-        productName: item.products[0]?.name ?? "",
-        additionalItems: item.products.slice(1).map((product) => product.name),
-        car: { name: customer.vehicle.model, number: customer.vehicle.number },
-        customer: {
-          name: customer.name,
-          phone: customer.phone,
-          visitLabel: visitLabel(customer.visitCount),
-        },
-        requestMessage: item.requirements || undefined,
-        status: decisions[id] ?? toStatus(item.status),
+        ...reservation,
+        status: decisions[reservation.id] ?? reservation.status,
       };
     }),
   );
@@ -151,7 +72,9 @@ export async function fetchReservationsPage(
   return { items, hasNext: body.hasNext, totalPages: body.totalPages };
 }
 
-export async function fetchReservation(id: string): Promise<ApiDetail> {
+export async function fetchReservation(
+  id: string,
+): Promise<ApiReservationDetail> {
   const res = await fetch(apiUrl(`/reservations/${id}`));
   if (!res.ok) throw new Error("예약 정보를 불러오지 못했습니다.");
   return res.json();

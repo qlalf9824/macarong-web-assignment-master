@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useInfiniteQuery } from "@tanstack/react-query";
-import { fetchReservationsPage, type Reservation } from "@/lib/reservations";
+import type { Reservation } from "@/lib/models";
+import { fetchReservationsPage } from "@/lib/reservations";
 import { addDays, formatDateHeader } from "@/lib/utils/format";
 import ReservationCard from "./ReservationCardClient";
 
